@@ -847,7 +847,7 @@ war:
     # If true and the monarch/king dies the nation is removed from the war.
     remove_on_monarch_death: 'false'
     # If enabled players will be able to break/place blocks in enemy plots during a war.
-    allow_block_griefing: 'true'
+    allow_block_griefing: 'false'
  
     # A townblock takes damage every 5 seconds that an enemy is stood in it.
     block_hp:
@@ -914,13 +914,13 @@ war:
     # '*' = Allow all materials.
     # Prepend a '-' in front of a material to remove it. Used in conjunction with when you use '*'.
     # Eg: '*,-chest,-furnace'
-    editable_materials: tnt,fence,ladder,wood_door,iron_door,fire
-    item_use: 'true'
-    switch: 'true'
+    editable_materials: ''
+    item_use: 'false'
+    switch: 'false'
     # Add '-fire' to editable materials for complete protection when setting is false. This prevents fire to be created and spread.
-    fire: 'true'
-    explosions: 'true'
-    explosions_break_blocks: 'true'
+    fire: 'false'
+    explosions: 'false'
+    explosions_break_blocks: 'false'
     # TODO: Blocks will not regen as of yet. Stay tuned for later changes.
     # Only under affect when explosions_break_blocks is true.
     explosions_regen_blocks: 'true'
