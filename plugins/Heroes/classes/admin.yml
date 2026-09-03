@@ -1,0 +1,37 @@
+name: Admin
+default: false
+wildcard-permission: false
+primary: true
+secondary: false
+description: The Admin Class Path
+permitted-armor:
+- ALL
+permitted-weapon:
+- ALL
+permitted-skills:
+  ALL: true
+experience-sources:
+- KILLING
+- CRAFTING
+- MINING
+- LOGGING
+- FARMING
+- QUESTING
+- EXTERNAL
+permission-skills:
+base-max-health: 20
+max-health-per-level: 0.1
+base-max-mana: 75
+max-mana-per-level: 2
+mana-regen: 1
+mana-regen-per-level: .05
+expmodifier: 1.0
+item-damage:
+  air: 1
+item-damage-level:
+projectile-damage:
+  Arrow: 3
+projectile-damage-level:
+expLoss: 0
+tier: 0
+recipes: [ default ]

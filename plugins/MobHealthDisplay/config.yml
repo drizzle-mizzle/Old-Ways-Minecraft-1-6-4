@@ -1,0 +1,6 @@
+# Thanks for using MobHealthDisplay!
+MobHealthDisplay:
+  enabled: true
+  mobHealth:
+    format: '&7{mobName}: &2{health}&7/&4{maxHealth}'
+    dead: '&4{mobName}: Dead'

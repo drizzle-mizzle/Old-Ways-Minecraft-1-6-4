@@ -1,0 +1,70 @@
+creature-health:
+    Chicken: 4
+    Cow: 10
+    Creeper: 20
+    Ghast: 10
+    Giant: 100
+    Pig: 10
+    PigZombie: 20
+    Sheep: 8
+    Skeleton: 20
+    Ozelot: 10
+    Slime: 16
+    Spider: 20
+    Squid: 10
+    Zombie: 20
+    Wolf: 8
+    CaveSpider: 20
+    Enderman: 40
+    EnderDragon: 200
+    Silverfish: 8
+    Villager: 20
+    Blaze: 20
+    MushroomCow: 10
+    LavaSlime: 16
+    SnowMan: 4
+    VillagerGolem: 100
+    Bat: 6
+    WitherBoss: 300
+    Witch: 26
+    EntityHorse: 20
+creature-damage:
+    Creeper: 49
+    Giant: 17
+    Zombie: 4
+    PigZombie: 5
+    EnderDragon: 10
+    Wolf: 2
+    Enderman: 7
+    Skeleton: 4
+    Spider: 2
+    CaveSpider: 2
+    SnowMan: 0
+    VillagerGolem: 20
+    Ozelot: 3
+    Slime: 4
+    LavaSlime: 6
+    WitherBoss: 5
+item-damage:
+    Air: 2
+environmental-damage:
+    CONTACT: 1
+    BLOCK_EXPLOSION: 1.2 # at range 0
+    FALL: .05 #Per block above 3
+    LAVA: .2
+    FIRE: .2
+    FIRE_TICK: 1 #flat amount per tick
+    POISON: 1 #flat amount per tick
+    SUFFOCATION: .05
+    DROWNING: .1
+    STARVATION: .05
+    VOID: .2
+    PROJECTILE: 1 #Dispenser damage
+potions:
+    health-per-tier: .1
+enchantment-damage:
+    THORNS: 1
+    DAMAGE_ALL: 1
+    DAMAGE_UNDEAD: 1
+    DAMAGE_ARTHROPODS: 1
+    ARROW_DAMAGE: 1

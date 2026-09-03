@@ -1,0 +1,23 @@
+# Портативная Java (98 МБ windows-бинарников) — ставится скриптом из шага 01
+jre8/
+
+# Миры — состояние, а не конфигурация
+world/
+world_nether/
+world_the_end/
+
+# Логи и служебное
+*.log
+cache/
+backups/
+
+# Состояние плагинов: в репозитории живут только настройки
+plugins/Towny/data/
+plugins/Towny/backup/
+plugins/Towny/logs/
+plugins/Heroes/players/
+plugins/Heroes/storage/
+plugins/Essentials/userdata/
+plugins/PluginMetrics/
+plugins/**/*.db
+*~

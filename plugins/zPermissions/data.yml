@@ -1,0 +1,55 @@
+# DO NOT EDIT -- file is written to periodically!
+players: []
+groups:
+- name: default
+  permissions:
+    chairs.self: true
+    chairs.sit: true
+    heroes.bind: true
+    heroes.classes.citizen: true
+    heroes.classes.cleric: true
+    heroes.classes.mage: true
+    heroes.classes.rogue: true
+    heroes.classes.warrior: true
+    heroes.leaderboard: true
+    heroes.reset: true
+    heroes.scroll: true
+  metadata: {}
+  priority: 0
+  members: []
+  tempmembers: []
+- name: moderator
+  permissions:
+    essentials.invsee: true
+    essentials.kick: true
+    essentials.mute: true
+    essentials.socialspy: true
+    essentials.tempban: true
+    essentials.tp: true
+    essentials.tphere: true
+    essentials.vanish: true
+    nocheatplus.admin.notify: true
+    worldguard.region.*: true
+  metadata: {}
+  priority: 50
+  parents:
+  - default
+  members: []
+  tempmembers: []
+- name: admin
+  permissions:
+    chairs.reload: true
+    essentials.*: true
+    heroes.admin.*: true
+    nocheatplus.admin.*: true
+    towny.admin: true
+    towny.command.townyadmin.*: true
+    worldedit.*: true
+    worldguard.*: true
+    zpermissions.*: true
+  metadata: {}
+  priority: 100
+  parents:
+  - moderator
+  members: []
+  tempmembers: []

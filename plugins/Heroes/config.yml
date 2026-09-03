@@ -1,0 +1,65 @@
+leveling:
+  exp-curve: 1.0
+  max-exp: 100000
+  max-level: 50
+  pad-max-level: true
+  exp-loss: 0.1
+  pvp-exp-loss: 1.0
+  max-party-size: 6
+  party-exp-bonus: 1.0
+  level-loss: false
+  mastery-loss: false
+  spawner-checks: false
+  spawner-exp-mult: 0.5
+  reset-on-death: false
+  pvp-range: 50
+  min-pvp-level: 1
+  pvp-exp-range: 10
+  pvp-max-exp-range: 40
+  dump-exp-file: false
+classes:
+  swap-cost: 0
+  old-swap-cost: 0
+  prof-swap-cost: 0
+  old-prof-swap-cost: 0
+  master-swap-free: true
+  first-swap-free: true
+  use-prefix: false
+  reset-exp-on-change: true
+  reset-master-on-change: false
+  reset-prof-master-on-change: false
+  reset-prof-on-pri-change: false
+  lock-till-master: false
+  lock-at-max-level: false
+  self-heal: 0.5
+  class-change-cooldown: 600000
+healthbar:
+  limit-one-bar: true
+  health-per-bar: 20
+properties:
+  storage-type: yml
+  economy: false
+  debug: false
+  enchant-exp-mult: 3
+  global-cooldown: 500
+  block-tracking-duration: 900000
+  max-tracked-blocks: 2000
+  food-heal-percent: 0.05
+  slow-while-casting: true
+  combat-time: 10000
+  reduce-item-damage: 4
+  silence-passive-skill-messages: false
+bed:
+  enabled: true
+  interval: 15
+  percent: 5
+mana:
+  interval: 5
+  spout-mana-bar: true
+bonus:
+  expiration: 0
+  exp: 1.0
+  message: Bonus experience time is enabled!
+hats:
+  level: 1
+  enabled: false

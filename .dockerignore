@@ -1,0 +1,30 @@
+# Java для Windows — в linux-образе бесполезна, там свой Temurin из базового слоя
+jre8/
+
+# архивы и логи сборки
+cache/
+backups/
+*.log
+
+# миры — это данные, они живут в томе /data
+world/
+world_nether/
+world_the_end/
+
+# windows-обвязка
+*.bat
+
+# состояние плагинов: в образ идут только настройки
+plugins/Towny/data/
+plugins/Towny/backup/
+plugins/Towny/logs/
+plugins/Heroes/players/
+plugins/Heroes/storage/
+plugins/Essentials/userdata/
+plugins/PluginMetrics/
+plugins/zPermissions/data.yml~
+plugins/**/*.db
+
+# сам docker-обвес в образ не нужен
+docker-compose.yml
+.dockerignore

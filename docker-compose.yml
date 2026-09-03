@@ -1,0 +1,42 @@
+services:
+  minecraft:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: mc164-towny:1.0
+    container_name: mc164
+    restart: unless-stopped
+
+    ports:
+      - "25565:25565"
+
+    volumes:
+      # Всё состояние сервера: миры, города Towny, классы Heroes, права, банк.
+      # Образ можно пересобирать и обновлять — том переживёт.
+      - mcdata:/data
+
+    environment:
+      JAVA_XMS: "2G"
+      JAVA_XMX: "4G"
+      # Towny считает «новый день» по времени контейнера — ставьте свою зону
+      TZ: "Europe/Moscow"
+
+    # Ядру 1.6.4 нужно время на сохранение миров по SIGTERM.
+    # Если docker убьёт его раньше, можно потерять последние чанки.
+    stop_grace_period: 120s
+
+    # Одного потока хватает: 1.6.4 однопоточный, второй нужен только сборщику мусора.
+    # Лимит памяти держите выше JAVA_XMX — JVM берёт сверх кучи на метаданные и стеки.
+    deploy:
+      resources:
+        limits:
+          memory: 5G
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+volumes:
+  mcdata:

@@ -1,0 +1,25 @@
+# По умолчанию всё текстовое — LF. Проект собирается в linux-образе,
+# и CRLF там ломает и скрипты, и паттерны .dockerignore.
+* text=auto eol=lf
+
+# Скрипты, попадающие в linux-образ, обязаны быть LF.
+# С CRLF bash внутри контейнера падает на «\r: command not found».
+*.sh            text eol=lf
+docker/mc       text eol=lf
+Dockerfile      text eol=lf
+
+# Конфиги сервера читает Java — ей LF привычнее, а diff чище
+*.yml           text eol=lf
+*.yaml          text eol=lf
+*.txt           text eol=lf
+*.properties    text eol=lf
+*.md            text eol=lf
+
+# Батники запускает cmd.exe, тут нужен CRLF
+*.bat           text eol=crlf
+
+# Бинарники git трогать не должен
+*.jar           binary
+*.zip           binary
+*.dat           binary
+*.mca           binary

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Отправить команду в консоль сервера:  docker exec mc164 mc "say привет"
+set -euo pipefail
+if [ $# -eq 0 ]; then
+  echo "использование: mc \"<команда сервера без слэша>\"" >&2
+  exit 2
+fi
+printf '%s\n' "$*" > /tmp/console
