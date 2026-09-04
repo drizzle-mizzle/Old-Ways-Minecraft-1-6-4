@@ -25,3 +25,7 @@ plugins/Essentials/userdata/
 plugins/PluginMetrics/
 plugins/**/*.db
 *~
+
+# Python
+__pycache__/
+*.pyc
