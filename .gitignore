@@ -6,6 +6,10 @@ world/
 world_nether/
 world_the_end/
 
+# Зеркало набора запуска клиента (~126 МБ) — восстанавливается
+# командой python tools/fetch_client.py по манифестам из client/
+mirror/
+
 # Логи и служебное
 *.log
 cache/
