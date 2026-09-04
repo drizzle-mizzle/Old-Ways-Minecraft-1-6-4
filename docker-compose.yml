@@ -38,5 +38,33 @@ services:
         max-size: "20m"
         max-file: "5"
 
+  auth:
+    build:
+      context: ./auth
+    image: mc164-auth:0.1
+    container_name: mc164-auth
+    restart: unless-stopped
+
+    ports:
+      - "8080:8080"
+
+    volumes:
+      # База аккаунтов и скины
+      - authdata:/data
+
+    environment:
+      # Основной админский аккаунт. Пароль по умолчанию совпадает с ником —
+      # задайте здесь свой до того, как сервис станет доступен извне.
+      WF_ADMIN_USER: "flower"
+      # WF_ADMIN_PASSWORD: "..."
+      TZ: "Europe/Moscow"
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   mcdata:
+  authdata:
