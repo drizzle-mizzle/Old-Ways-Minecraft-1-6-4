@@ -132,10 +132,11 @@ final class MainWindow {
         memoryField.setMaximumSize(new Dimension(90, 26));
         memory.add(memoryField);
         memory.add(new JLabel(" МБ"));
-        memory.add(Box.createHorizontalStrut(16));
-        memory.add(connectBox);
+        memory.add(Box.createHorizontalGlue());
         c.gridx = 1; c.gridy = 3;
         form.add(memory, c);
+        c.gridx = 1; c.gridy = 4;
+        form.add(connectBox, c);
 
         progress.setVisible(false);
         progress.setStringPainted(false);
@@ -171,10 +172,12 @@ final class MainWindow {
         content.setLayout(new BorderLayout());
         JPanel top = new JPanel();
         top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
-        top.add(head);
-        top.add(form);
-        top.add(middle);
-        top.add(buttons);
+        // BoxLayout центрирует то, что уже контейнера, — без этого заголовок
+        // и форма уезжают к правому краю
+        for (JPanel panel : new JPanel[] { head, form, middle, buttons }) {
+            panel.setAlignmentX(0f);
+            top.add(panel);
+        }
         content.add(top, BorderLayout.NORTH);
         content.add(logPane, BorderLayout.CENTER);
 
@@ -196,6 +199,9 @@ final class MainWindow {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setContentPane(content);
         frame.pack();
+        // pack() считает по минимуму, а кнопкам и подписям нужен воздух:
+        // без этого правый край режет «Журнал»
+        frame.setSize(Math.max(frame.getWidth(), 520), frame.getHeight());
         frame.setMinimumSize(frame.getSize());
         frame.setLocationRelativeTo(null);
     }
