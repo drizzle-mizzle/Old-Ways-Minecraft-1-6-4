@@ -20,12 +20,16 @@
 подпись становится недействительной, и Java откажется грузить классы, поэтому
 подпись снимается — ровно то же делают при установке модов на 1.6.4.
 
+Адрес меняется сколько угодно раз. Константа опознаётся по хвосту пути,
+а не по адресу Mojang, поэтому уже пропатченный джарник можно перепатчить
+на новый хост — это и делает адрес настраиваемым, без пересборки раздачи.
+
 Использование:
     python tools/patch_jars.py --input client.jar --output client-patched.jar \\
-        --auth-base http://auth.example.com --skin-base http://skins.example.com
+        --auth-base http://localhost:8080 --skin-base http://localhost:8080
 
-Проверка без записи:
-    python tools/patch_jars.py --input server.jar --dry-run
+    python tools/patch_jars.py --input client.jar --show      # текущие адреса
+    python tools/patch_jars.py --input server.jar --dry-run   # без записи
 """
 
 import argparse
@@ -126,15 +130,15 @@ def _validate(data):
     return entries
 
 
-def patch_class(data, replacements):
-    """Заменяет строковые константы. Возвращает (новые байты, список замен)."""
+def patch_class(data, auth, skin):
+    """Переписывает адреса в константах. Возвращает (новые байты, список замен)."""
     entries = _validate(data)
     _, pool_end = _read_pool(data)
 
     applied, patched = [], []
     for tag, payload in entries:
-        if tag == 1 and payload in replacements:
-            new = replacements[payload]
+        new = rewrite_url(payload, auth, skin) if tag == 1 else None
+        if new is not None:
             applied.append((payload.decode(), new.decode()))
             patched.append((tag, new))
         else:
@@ -149,20 +153,48 @@ def patch_class(data, replacements):
     return result, applied
 
 
-def build_replacements(auth_base, skin_base):
-    auth = auth_base.rstrip('/')
-    skin = skin_base.rstrip('/')
-    table = {
-        'http://session.minecraft.net/game/joinserver.jsp?user=':
-            f'{auth}/game/joinserver.jsp?user=',
-        'http://session.minecraft.net/game/checkserver.jsp?user=':
-            f'{auth}/game/checkserver.jsp?user=',
-        'http://skins.minecraft.net/MinecraftSkins/%s.png':
-            f'{skin}/MinecraftSkins/%s.png',
-        'http://skins.minecraft.net/MinecraftCloaks/%s.png':
-            f'{skin}/MinecraftCloaks/%s.png',
-    }
-    return {k.encode(): v.encode() for k, v in table.items()}
+# Опознаём константу по хвосту пути, а не по полному адресу Mojang. Иначе
+# патч работает ровно один раз: во второй заход строки уже наши, оригинальных
+# в джарнике нет, и патчер молча ничего не находит. С суффиксами адрес можно
+# менять сколько угодно раз — это и делает его настраиваемым.
+URL_SUFFIXES = {
+    '/game/joinserver.jsp?user=': 'auth',
+    '/game/checkserver.jsp?user=': 'auth',
+    '/MinecraftSkins/%s.png': 'skin',
+    '/MinecraftCloaks/%s.png': 'skin',
+}
+
+
+def rewrite_url(value: bytes, auth: str, skin: str):
+    """Новый адрес для константы или None, если она нас не касается."""
+    try:
+        text = value.decode('utf8')
+    except UnicodeDecodeError:
+        return None
+    if not text.startswith(('http://', 'https://')):
+        return None
+    for suffix, kind in URL_SUFFIXES.items():
+        if text.endswith(suffix):
+            base = (auth if kind == 'auth' else skin).rstrip('/')
+            new = base + suffix
+            return None if new == text else new.encode()
+    return None
+
+
+def find_urls(data: bytes):
+    """Текущие адреса в class-файле — для режима --show."""
+    found = []
+    for tag, payload in _read_pool(data)[0]:
+        if tag != 1:
+            continue
+        try:
+            text = payload.decode('utf8')
+        except UnicodeDecodeError:
+            continue
+        if text.startswith(('http://', 'https://')) and \
+                any(text.endswith(s) for s in URL_SUFFIXES):
+            found.append(text)
+    return found
 
 
 def strip_manifest_digests(manifest):
@@ -175,7 +207,7 @@ def strip_manifest_digests(manifest):
     return head.rstrip(b'\r\n') + b'\r\n\r\n'
 
 
-def process(src, dst, replacements, dry_run=False):
+def process(src, dst, auth, skin, dry_run=False, show=False):
     zin = zipfile.ZipFile(src)
     signed = [n for n in zin.namelist() if n.upper().endswith(SIG_SUFFIXES)]
 
@@ -191,7 +223,11 @@ def process(src, dst, replacements, dry_run=False):
 
         if name.endswith('.class'):
             try:
-                data, applied = patch_class(data, replacements)
+                if show:
+                    for url in find_urls(data):
+                        report.append((name, url, None))
+                    continue
+                data, applied = patch_class(data, auth, skin)
             except ClassFileError as exc:
                 raise SystemExit(f'{name}: {exc}')
             for old, new in applied:
@@ -202,16 +238,25 @@ def process(src, dst, replacements, dry_run=False):
 
         entries.append((info, data))
 
-    if dropped:
-        print(f'  подпись снята: {", ".join(dropped)}')
-    if signed:
-        print('  из MANIFEST.MF убраны секции с хешами файлов')
+    if show:
+        if signed:
+            print(f'  джарник подписан: {", ".join(signed)}')
+    else:
+        if dropped:
+            print(f'  подпись снята: {", ".join(dropped)}')
+        if signed:
+            print('  из MANIFEST.MF убраны секции с хешами файлов')
 
     for cls, old, new in report:
-        print(f'  {cls}\n      {old}\n   -> {new}')
+        if new is None:                       # режим --show: только текущее состояние
+            print(f'  {cls}\n      {old}')
+        else:
+            print(f'  {cls}\n      {old}\n   -> {new}')
     if not report:
-        print('  целевых констант не найдено — джарник не тронут')
+        print('  адресов не найдено или они уже такие — джарник не тронут')
 
+    if show:
+        return len(report)
     if dry_run:
         print('  --dry-run: файл не записан')
         return len(report)
@@ -239,6 +284,8 @@ def main():
     ap.add_argument('--skin-base', default='http://skins.invalid',
                     help='база для скинов и плащей, например http://skins.example.com')
     ap.add_argument('--dry-run', action='store_true', help='показать замены, ничего не писать')
+    ap.add_argument('--show', action='store_true',
+                    help='только показать текущие адреса в джарнике')
     args = ap.parse_args()
 
     src = Path(args.input)
@@ -247,7 +294,7 @@ def main():
     dst = Path(args.output) if args.output else src.with_name(src.stem + '-patched.jar')
 
     print(f'{src.name}:')
-    count = process(src, dst, build_replacements(args.auth_base, args.skin_base), args.dry_run)
+    count = process(src, dst, args.auth_base, args.skin_base, args.dry_run, args.show)
     return 0 if count else 1
 
 
