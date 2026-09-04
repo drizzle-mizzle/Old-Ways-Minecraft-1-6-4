@@ -10,6 +10,16 @@ world_the_end/
 # командой python tools/fetch_client.py по манифестам из client/
 mirror/
 
+# Раздача для лаунчера — собирается из зеркала командой tools/build_dist.py
+dist/
+
+# JDK 8 для сборки лаунчера (192 МБ). Ставится так же, как jre8:
+# Temurin 8u504 с adoptium.net, распаковать под этим именем
+jdk8/
+
+# Собранный лаунчер
+launcher/build/
+
 # Логи и служебное
 *.log
 cache/

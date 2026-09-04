@@ -34,7 +34,7 @@ from pathlib import Path
 
 import bcrypt
 from fastapi import FastAPI, Header, HTTPException, Request, Response
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
 DB_PATH = Path(os.environ.get('WF_DB', '/data/auth.sqlite3'))
@@ -42,6 +42,7 @@ SKIN_DIR = Path(os.environ.get('WF_SKINS', '/data/skins'))
 SESSION_TTL = int(os.environ.get('WF_SESSION_TTL', 60 * 60 * 24 * 7))  # неделя
 JOIN_TTL = int(os.environ.get('WF_JOIN_TTL', 60))                      # окно на рукопожатие
 MAX_SKIN_BYTES = 64 * 1024
+DIST_DIR = Path(os.environ.get('WF_DIST', '/data/dist'))
 
 SEED_USER = os.environ.get('WF_ADMIN_USER', 'flower')
 SEED_PASSWORD = os.environ.get('WF_ADMIN_PASSWORD', 'flower')
@@ -261,6 +262,33 @@ def skin(name: str):
 @app.get('/MinecraftCloaks/{name}.png')
 def cloak(name: str):
     return _serve_texture(SKIN_DIR / 'cloaks', name)
+
+
+# --- раздача сборки ---------------------------------------------------------
+# Лаунчер берёт отсюда манифест и по нему докачивает недостающее. Каталог
+# готовит tools/build_dist.py; всё, что здесь нужно, — отдать его как есть.
+
+@app.get('/dist/manifest.json')
+def dist_manifest():
+    path = DIST_DIR / 'manifest.json'
+    if not path.is_file():
+        raise HTTPException(503, 'раздача не собрана')
+    return Response(path.read_bytes(), media_type='application/json',
+                    headers={'Cache-Control': 'no-cache'})
+
+
+@app.get('/dist/files/{path:path}')
+def dist_file(path: str):
+    root = (DIST_DIR / 'files').resolve()
+    try:
+        target = (root / path).resolve()
+    except OSError:
+        raise HTTPException(400, 'плохой путь')
+    # resolve() снимает и «..», и симлинки, поэтому достаточно проверить,
+    # что итог всё ещё лежит внутри каталога раздачи
+    if root not in target.parents or not target.is_file():
+        raise HTTPException(404, 'нет файла')
+    return FileResponse(target, media_type='application/octet-stream')
 
 
 @app.get('/healthz')
