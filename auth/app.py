@@ -184,6 +184,33 @@ def api_login(body: LoginRequest):
                              must_change_password=bool(user['must_change']) or weak)
 
 
+@app.get('/api/session', response_model=LoginResponse)
+def api_session(x_session: str = Header(...)):
+    """Кому принадлежит пропуск.
+
+    Лаунчер держит выданный токен между запусками и при старте спрашивает,
+    жив ли он: сеанс могли закрыть сменой пароля или он просто протух.
+    """
+    with db() as conn:
+        user = user_by_session(conn, x_session)
+        if not user:
+            raise HTTPException(401, 'сессия недействительна')
+        row = conn.execute('SELECT expires_at FROM sessions WHERE token = ?',
+                           (x_session,)).fetchone()
+        return LoginResponse(username=user['username'], session=x_session,
+                             expires_at=row['expires_at'],
+                             is_admin=bool(user['is_admin']),
+                             must_change_password=bool(user['must_change']))
+
+
+@app.delete('/api/session')
+def api_session_delete(x_session: str = Header(...)):
+    """Выход: пропуск гасится, дальше по нему ничего не сделать."""
+    with db() as conn:
+        conn.execute('DELETE FROM sessions WHERE token = ?', (x_session,))
+    return {'ok': True}
+
+
 class PasswordChange(BaseModel):
     old_password: str
     new_password: str = Field(min_length=6, max_length=128)

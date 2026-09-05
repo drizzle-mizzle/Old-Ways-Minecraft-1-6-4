@@ -106,7 +106,8 @@ public final class Main {
                     address, base);
             Process game = GameRunner.start(cfg, command);
             int code = game.waitFor();
-            Log.info("игра завершилась с кодом %d", code);
+            Log.info("игра завершилась с кодом %d, её вывод в %s",
+                    code, new java.io.File(cfg.root(), "game.log"));
             return code;
         } catch (Exception e) {
             Log.error("не вышло", e);

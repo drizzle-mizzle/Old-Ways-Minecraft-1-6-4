@@ -1,12 +1,10 @@
 package oldways.launcher;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.awt.GraphicsEnvironment;
 import java.awt.Rectangle;
 import java.awt.Toolkit;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -109,30 +107,24 @@ final class GameRunner {
         return command;
     }
 
-    /** Запускает игру и уводит её вывод в журнал лаунчера. */
+    /**
+     * Запускает игру и уводит её вывод в файл.
+     *
+     * Не в журнал лаунчера через трубу: лаунчер закрывается сразу после
+     * запуска, а брошенная труба рано или поздно заполняется, и игра встаёт
+     * намертво на первой же строке, которую некому прочитать. Файл переживает
+     * лаунчер, и по нему потом разбирают падения.
+     */
     static Process start(Config cfg, List<String> command) throws IOException {
         Util.mkdirs(cfg.gameDir());
+        File log = new File(cfg.root(), "game.log");
         Log.info("запускаю игру: %s", hide(command));
+        Log.info("вывод игры: %s", log);
         ProcessBuilder builder = new ProcessBuilder(command);
         builder.directory(cfg.gameDir());
         builder.redirectErrorStream(true);
-        final Process process = builder.start();
-
-        Thread pipe = new Thread(new Runnable() {
-            public void run() {
-                try {
-                    BufferedReader reader = new BufferedReader(
-                            new InputStreamReader(process.getInputStream(), "UTF-8"));
-                    String line;
-                    while ((line = reader.readLine()) != null) Log.info("[игра] %s", line);
-                } catch (IOException e) {
-                    Log.error("вывод игры оборвался", e);
-                }
-            }
-        }, "game-output");
-        pipe.setDaemon(true);
-        pipe.start();
-        return process;
+        builder.redirectOutput(ProcessBuilder.Redirect.to(log));
+        return builder.start();
     }
 
     /** Та же команда, но без токена сессии: журнал читают посторонние. */

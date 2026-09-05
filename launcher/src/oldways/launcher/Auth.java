@@ -51,6 +51,48 @@ final class Auth {
                 Json.num(data, "expires_at"));
     }
 
+    /**
+     * Проверяет сохранённый пропуск и возвращает, кому он выдан.
+     *
+     * Токен живёт неделю, но может кончиться раньше: смена пароля закрывает
+     * все сеансы разом. Поэтому перед тем как написать «вы вошли», лаунчер
+     * спрашивает сервис, жив ли пропуск.
+     */
+    static Session check(String base, String token) throws IOException {
+        String answer;
+        try {
+            answer = Http.get(base + "/api/session", token);
+        } catch (Http.HttpError e) {
+            if (e.code == 401) throw new SessionGone();
+            throw new IOException("сервис авторизации ответил " + e.detail());
+        }
+        Map<String, Object> data = Json.map(Json.parse(answer));
+        return new Session(
+                Json.str(data, "username"),
+                Json.str(data, "session"),
+                Json.bool(data, "is_admin"),
+                Json.bool(data, "must_change_password"),
+                Json.num(data, "expires_at"));
+    }
+
+    /** Пропуск больше не действует — надо входить заново. */
+    static final class SessionGone extends IOException {
+        private static final long serialVersionUID = 1L;
+
+        SessionGone() {
+            super("пропуск больше не действует");
+        }
+    }
+
+    /** Гасит пропуск на сервисе: после выхода им уже ничего не сделать. */
+    static void logout(String base, String token) throws IOException {
+        try {
+            Http.delete(base + "/api/session", token);
+        } catch (Http.HttpError e) {
+            if (e.code != 401) throw new IOException("выйти не вышло: " + e.detail());
+        }
+    }
+
     static void changePassword(String base, String session, String oldPassword,
                                String newPassword) throws IOException {
         String body = Json.write("old_password", oldPassword, "new_password", newPassword);

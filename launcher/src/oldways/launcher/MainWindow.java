@@ -438,6 +438,7 @@ final class MainWindow {
         root.setPreferredSize(new Dimension(
                 (int) (Theme.DESIGN_W * k), (int) (Theme.DESIGN_H * k)));
         showSession(null);
+        restoreSession();
         frame.setResizable(false);
         frame.pack();
         frame.setLocationRelativeTo(null);
@@ -700,6 +701,7 @@ final class MainWindow {
         if (session != null && !previous.equals(now)) {
             // сеанс выдан прежним сервером и на новом не действует
             showSession(null);
+            forgetSession();
             oops("Адрес сервера изменён — войдите заново");
         }
         cfg.set("address", now);
@@ -742,6 +744,7 @@ final class MainWindow {
                 final Auth.Session opened =
                         Auth.login(Address.parse(raw).base(), user, password);
                 Log.info("вход выполнен: %s", opened.username);
+                rememberSession(opened);
                 SwingUtilities.invokeLater(new Runnable() {
                     public void run() {
                         passwordField.setText("");   // дальше он не нужен
@@ -752,6 +755,68 @@ final class MainWindow {
                 });
             }
         });
+    }
+
+    /**
+     * Кладёт пропуск в настройки, чтобы следующий запуск начался с «вы вошли».
+     *
+     * Пропуск живёт неделю и хранится в launcher.properties — том же файле, что
+     * и остальные настройки, в папке профиля игрока. Это не пароль: его можно
+     * погасить кнопкой «Выйти» или сменой пароля, и он привязан к адресу
+     * сервера, для которого выдан.
+     */
+    private void rememberSession(Auth.Session value) {
+        cfg.set("session.token", value.token);
+        cfg.set("session.address", Address.parse(addressField.getText().trim()).base());
+        cfg.save();
+    }
+
+    private void forgetSession() {
+        cfg.set("session.token", null);
+        cfg.set("session.address", null);
+        cfg.save();
+    }
+
+    /** Проверяет сохранённый пропуск и, если он жив, сразу показывает «вы вошли». */
+    private void restoreSession() {
+        final String token = cfg.get("session.token", "");
+        if (token.isEmpty()) return;
+        final String base;
+        try {
+            base = Address.parse(addressField.getText().trim()).base();
+        } catch (RuntimeException e) {
+            return;
+        }
+        if (!base.equals(cfg.get("session.address", ""))) {
+            forgetSession();     // пропуск выдан другим сервером
+            return;
+        }
+
+        say("Проверяю вход…");
+        new Thread(new Runnable() {
+            public void run() {
+                try {
+                    final Auth.Session opened = Auth.check(base, token);
+                    Log.info("пропуск на месте: %s", opened.username);
+                    SwingUtilities.invokeLater(new Runnable() {
+                        public void run() {
+                            if (session != null) return;   // успели войти руками
+                            userField.setText(opened.username);
+                            showSession(opened);
+                            say(" ");
+                        }
+                    });
+                } catch (Auth.SessionGone e) {
+                    Log.info("пропуск истёк, нужен вход заново");
+                    forgetSession();
+                    say(" ");
+                } catch (Exception e) {
+                    // сервис недоступен — форма входа и так на экране
+                    Log.error("не удалось проверить пропуск", e);
+                    say(" ");
+                }
+            }
+        }, "session").start();
     }
 
     /** Какая карточка на экране: вход, настройки, аккаунт или смена пароля. */
@@ -776,9 +841,23 @@ final class MainWindow {
 
     private void onLogout() {
         if (busy) return;
+        final Auth.Session leaving = session;
         showSession(null);
         passwordField.setText("");
         status.setText(" ");
+        forgetSession();
+        if (leaving == null) return;
+        final String raw = addressField.getText().trim();
+        new Thread(new Runnable() {
+            public void run() {
+                try {
+                    Auth.logout(Address.parse(raw).base(), leaving.token);
+                } catch (Exception e) {
+                    // не достучались — пропуск всё равно стёрт у нас
+                    Log.error("не вышло погасить пропуск на сервисе", e);
+                }
+            }
+        }, "logout").start();
     }
 
     /**
@@ -860,29 +939,13 @@ final class MainWindow {
 
             List<String> command = GameRunner.command(cfg, manifest, client, current,
                     autoConnect.isChecked() ? address : null, base);
-            final Process game = GameRunner.start(cfg, command);
-            SwingUtilities.invokeLater(new Runnable() {
-                public void run() {
-                    progress.setRunning(false);
-                    progress.setVisible(false);
-                    status.setText("Игра запущена");
-                    // отменять уже нечего: сборка на месте, игра живёт сама
-                    playButton.setEnabled(false);
-                    frame.setExtendedState(JFrame.ICONIFIED);
-                }
-            });
-            int code = game.waitFor();
-            Log.info("игра завершилась с кодом %d", code);
-            if (code == 0) {
-                System.exit(0);
-            }
-            SwingUtilities.invokeLater(new Runnable() {
-                public void run() {
-                    frame.setExtendedState(JFrame.NORMAL);
-                    showLog();
-                }
-            });
-            oops("Игра завершилась с ошибкой (код " + code + ") — подробности в журнале");
+            GameRunner.start(cfg, command);
+            // Игра живёт сама по себе, а лаунчеру больше нечего делать: он
+            // закрывается, чтобы не занимать панель задач и память. Вывод игры
+            // с этого мгновения пишется в game.log — по нему разбирают падения.
+            Log.info("игра запущена, лаунчер закрывается");
+            cfg.save();
+            System.exit(0);
         } catch (Exception e) {
             Log.error("запуск не удался", e);
             oops(Log.describe(e));
@@ -1133,6 +1196,7 @@ final class MainWindow {
                     });
                     throw e;
                 }
+                forgetSession();
                 SwingUtilities.invokeLater(new Runnable() {
                     public void run() {
                         // сервис закрывает все сеансы разом, наш в том числе

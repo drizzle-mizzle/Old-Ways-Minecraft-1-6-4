@@ -108,6 +108,17 @@ final class Http {
         }
     }
 
+    /** GET с пропуском в заголовке: им спрашивают, жив ли сеанс. */
+    static String get(String url, String session) throws IOException {
+        HttpURLConnection conn = open(url);
+        try {
+            if (session != null) conn.setRequestProperty("X-Session", session);
+            return new String(finish(conn), "UTF-8");
+        } finally {
+            conn.disconnect();
+        }
+    }
+
     static String delete(String url, String session) throws IOException {
         HttpURLConnection conn = open(url);
         try {
