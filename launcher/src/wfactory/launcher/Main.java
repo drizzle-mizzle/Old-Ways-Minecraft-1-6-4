@@ -13,7 +13,7 @@ import java.util.Map;
  */
 public final class Main {
 
-    static final String VERSION = "0.1";
+    static final String VERSION = "0.2";
 
     public static void main(String[] args) {
         Map<String, String> options = parse(args);

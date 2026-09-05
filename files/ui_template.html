@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>UI Template</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * {
+    box-sizing: border-box;
+    font-family: "Chakra Petch", sans-serif;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 800px;
+    background: #2b2b2b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+  }
+
+  .window {
+    width: 1280px;
+    height: 800px;
+    flex: none;
+    background: #6f8ea3 url("bg_night.png") center / cover no-repeat;
+    border: 1px solid #444;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .box {
+    position: absolute;
+    top: 48.6%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40%;
+    height: 308px;
+    padding-top: 40px;
+    background:
+      linear-gradient(to bottom left, rgba(255, 255, 255, 0.12), rgba(70, 100, 95, 0.08)),
+      rgba(22, 22, 22, 0.8);
+    backdrop-filter: blur(5px) saturate(160%);
+    -webkit-backdrop-filter: blur(5px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 7px;
+    box-shadow: 0 12px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .logo {
+    position: absolute;
+    top: calc(48.6% - 140px);
+    left: 50%;
+    transform: translate(-50%, -65%);
+    width: calc(0.67 * 48%);
+    pointer-events: none;
+  }
+
+  .logo img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+
+  .login-form {
+    width: 78%;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(-15px);
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .field:first-of-type {
+    margin-bottom: 10.5px;
+  }
+
+  .field label {
+    width: 92%;
+    text-align: left;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+
+  .field input {
+    width: 92%;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 5px;
+    padding: 13px 10px;
+    color: #fff;
+    font-size: 14px;
+    outline: none;
+  }
+
+  .field input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  .field input:focus {
+    border-color: rgba(255, 255, 255, 0.6);
+  }
+
+  .login-btn {
+    align-self: center;
+    width: 45%;
+    margin-top: 24px;
+    padding: 9px 7px;
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 5px;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .login-btn:hover {
+    background: rgba(255, 255, 255, 0.28);
+  }
+
+  .settings {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    z-index: 3;
+  }
+
+  .settings-menu {
+    position: absolute;
+    top: 48.6%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44%;
+    height: 339px;
+    z-index: 2;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 0 20px;
+    background:
+      linear-gradient(to bottom left, rgba(255, 255, 255, 0.12), rgba(70, 100, 95, 0.08)),
+      rgb(22, 22, 22);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 7px;
+    box-shadow: 0 12px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  }
+
+  .menu-field {
+    width: 80%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .menu-field.row {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .menu-field label {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+
+  .menu-field input[type="text"] {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 5px;
+    padding: 10px;
+    color: #fff;
+    font-size: 14px;
+    outline: none;
+  }
+
+  .menu-field input[type="text"]:focus {
+    border-color: rgba(255, 255, 255, 0.6);
+  }
+
+  .menu-field input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #d8d8d8;
+    cursor: pointer;
+  }
+
+  .menu-field input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    background: transparent;
+  }
+
+  .menu-field input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 2px;
+  }
+
+  .menu-field input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    margin-top: -5px;
+    cursor: pointer;
+  }
+
+  .theme-selector {
+    display: flex;
+    gap: 6px;
+  }
+
+  .theme-selector input {
+    display: none;
+  }
+
+  .theme-selector label {
+    flex: 1;
+    text-align: center;
+    padding: 7px 0;
+    margin: 0;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 5px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .theme-selector input:checked + label {
+    background: rgba(255, 255, 255, 0.28);
+    border-color: rgba(255, 255, 255, 0.5);
+  }
+
+  .settings-btn {
+    width: 44px;
+    height: 44px;
+    background: #4a4a4a;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 7px;
+    box-shadow: 0 12px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+
+  .settings-btn svg {
+    width: 24px;
+    height: 24px;
+    fill: #fff;
+  }
+
+  .settings-btn:hover {
+    transform: scale(1.1);
+  }
+
+  .settings-label {
+    font-size: 10px;
+    color: #fff;
+    letter-spacing: 0.02em;
+  }
+</style>
+</head>
+<body>
+  <div class="window">
+    <div class="box">
+      <form class="login-form">
+        <div class="field">
+          <label for="login">Логин:</label>
+          <input id="login" type="text">
+        </div>
+        <div class="field">
+          <label for="password">Пароль:</label>
+          <input id="password" type="password">
+        </div>
+        <button type="submit" class="login-btn">Войти</button>
+      </form>
+    </div>
+
+    <div class="logo"><img id="logoImg" alt="logo"></div>
+
+    <div class="settings" id="settingsToggle">
+      <div class="settings-btn">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M19.14,12.94c0.04,-0.3 0.06,-0.61 0.06,-0.94c0,-0.32 -0.02,-0.64 -0.07,-0.94l2.03,-1.58c0.18,-0.14 0.23,-0.41 0.12,-0.61l-1.92,-3.32c-0.12,-0.22 -0.37,-0.29 -0.59,-0.22l-2.39,0.96c-0.5,-0.38 -1.03,-0.7 -1.62,-0.94L14.4,2.81c-0.04,-0.24 -0.24,-0.41 -0.48,-0.41h-3.84c-0.24,0 -0.43,0.17 -0.47,0.41L9.25,5.35C8.66,5.59 8.12,5.92 7.63,6.29L5.24,5.33c-0.22,-0.08 -0.47,0 -0.59,0.22L2.74,8.87C2.62,9.08 2.66,9.34 2.86,9.48l2.03,1.58C4.84,11.36 4.8,11.69 4.8,12s0.02,0.64 0.07,0.94l-2.03,1.58c-0.18,0.14 -0.23,0.41 -0.12,0.61l1.92,3.32c0.12,0.22 0.37,0.29 0.59,0.22l2.39,-0.96c0.5,0.38 1.03,0.7 1.62,0.94l0.36,2.54c0.05,0.24 0.24,0.41 0.48,0.41h3.84c0.24,0 0.44,-0.17 0.47,-0.41l0.36,-2.54c0.59,-0.24 1.13,-0.56 1.62,-0.94l2.39,0.96c0.22,0.08 0.47,0 0.59,-0.22l1.92,-3.32c0.12,-0.22 0.07,-0.47 -0.12,-0.61L19.14,12.94zM12,15.6c-1.98,0 -3.6,-1.62 -3.6,-3.6s1.62,-3.6 3.6,-3.6s3.6,1.62 3.6,3.6S13.98,15.6 12,15.6z"/>
+        </svg>
+      </div>
+      <div class="settings-label">Настройки</div>
+    </div>
+
+    <div class="settings-menu" id="settingsMenu">
+      <div class="menu-field">
+        <label>Выделенная память: <span id="memValue">2048 MB</span></label>
+        <input type="range" id="memSlider" min="512" max="4096" step="512" value="2048" list="memTicks">
+        <datalist id="memTicks">
+          <option value="512"></option>
+          <option value="1024"></option>
+          <option value="1536"></option>
+          <option value="2048"></option>
+          <option value="2560"></option>
+          <option value="3072"></option>
+          <option value="3584"></option>
+          <option value="4096"></option>
+        </datalist>
+      </div>
+
+      <div class="menu-field">
+        <label for="authServer">Адрес сервера авторизации</label>
+        <input type="text" id="authServer" value="localhost">
+      </div>
+
+      <div class="menu-field row">
+        <input type="checkbox" id="autoConnect">
+        <label for="autoConnect">&nbsp;Подключаться к серверу сразу</label>
+      </div>
+
+      <div class="menu-field">
+        <label>Тема оформления</label>
+        <div class="theme-selector">
+          <input type="radio" name="theme" id="themeDay" value="day">
+          <label for="themeDay">День</label>
+          <input type="radio" name="theme" id="themeNight" value="night" checked>
+          <label for="themeNight">Ночь</label>
+          <input type="radio" name="theme" id="themeAuto" value="auto">
+          <label for="themeAuto">Авто</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const settingsToggle = document.getElementById('settingsToggle');
+    const settingsMenu = document.getElementById('settingsMenu');
+    settingsToggle.addEventListener('click', () => {
+      settingsMenu.style.display = settingsMenu.style.display === 'flex' ? 'none' : 'flex';
+    });
+
+    const memSlider = document.getElementById('memSlider');
+    const memValue = document.getElementById('memValue');
+    function formatMem(v) {
+      v = Number(v);
+      return v >= 1024 ? (v / 1024) + ' GB' : v + ' MB';
+    }
+    memValue.textContent = formatMem(memSlider.value);
+    memSlider.addEventListener('input', () => {
+      memValue.textContent = formatMem(memSlider.value);
+    });
+
+    const windowEl = document.querySelector('.window');
+    const logoImg = document.getElementById('logoImg');
+
+    // logo_night.png ships with an opaque black background instead of
+    // real alpha, so we chroma-key pure-black pixels out on a canvas.
+    function stripBlackBg(url) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const px = data.data;
+          for (let i = 0; i < px.length; i += 4) {
+            if (px[i] < 10 && px[i + 1] < 10 && px[i + 2] < 10) {
+              px[i + 3] = 0;
+            }
+          }
+          ctx.putImageData(data, 0, 0);
+          resolve(canvas.toDataURL());
+        };
+        img.src = url;
+      });
+    }
+
+    function setTheme(theme) {
+      if (theme === 'day') {
+        windowEl.style.backgroundImage = "url('bg_day.png')";
+        logoImg.src = 'logo_day.png';
+      } else if (theme === 'night') {
+        windowEl.style.backgroundImage = "url('bg_night.png')";
+        stripBlackBg('logo_night.png').then((dataUrl) => { logoImg.src = dataUrl; });
+      }
+      // "auto" is a stub: a real implementation would follow the system clock
+    }
+    setTheme('night');
+    document.querySelectorAll('input[name="theme"]').forEach((radio) => {
+      radio.addEventListener('change', (e) => {
+        if (e.target.checked) setTheme(e.target.value);
+      });
+    });
+  </script>
+</body>
+</html>

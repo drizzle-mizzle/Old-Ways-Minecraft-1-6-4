@@ -65,6 +65,14 @@ def main():
     if result.returncode:
         return result.returncode
 
+    # Картинки, шрифты и лицензия к ним едут внутри jar: лаунчер должен
+    # оставаться одним файлом, который не от чего отвязать. Копируем их
+    # к классам, а не передаём jar вторым каталогом: два дерева с общим
+    # верхним каталогом дают ему duplicate entry.
+    resources = HERE / 'resources'
+    if resources.is_dir():
+        shutil.copytree(resources, classes, dirs_exist_ok=True)
+
     target = build / JAR_NAME
     subprocess.run([str(jar), 'cfe', str(target), MAIN_CLASS, '-C', str(classes), '.'],
                    check=True)

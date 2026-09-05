@@ -1,10 +1,16 @@
 package wfactory.launcher;
 
-import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
-import javax.swing.JButton;
-import javax.swing.JCheckBox;
+import wfactory.launcher.ui.Background;
+import wfactory.launcher.ui.Buttons;
+import wfactory.launcher.ui.Check;
+import wfactory.launcher.ui.Fields;
+import wfactory.launcher.ui.GearButton;
+import wfactory.launcher.ui.Glass;
+import wfactory.launcher.ui.MemorySlider;
+import wfactory.launcher.ui.ProgressBar;
+import wfactory.launcher.ui.Segmented;
+import wfactory.launcher.ui.Theme;
+
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
@@ -13,62 +19,113 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
-import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
-import javax.swing.JSpinner;
 import javax.swing.JTextArea;
-import javax.swing.JTextField;
-import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
 import javax.swing.filechooser.FileNameExtensionFilter;
-import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.List;
 
 /**
- * Окно лаунчера.
+ * Окно лаунчера по макету ui_template.html.
  *
+ * Раскладка повторяет макет в его же единицах (1280x800) и умножается на
+ * масштаб окна: на маленьком экране всё сжимается целиком, а не разъезжается.
  * Работа идёт в отдельном потоке, интерфейс трогается только через
- * invokeLater: Swing однопоточен, а загрузка сборки занимает минуты.
+ * invokeLater — Swing однопоточен, а загрузка сборки занимает минуты.
  */
 final class MainWindow {
 
+    private static final String[] THEME_LABELS = { "День", "Ночь", "Авто" };
+    private static final String[] THEME_VALUES = { "day", "night", "auto" };
+    private static final double LOGO_ASPECT = 389.0 / 1424.0;
+
     private final Config cfg;
+    private final double k;
     private final JFrame frame = new JFrame("W-Factory");
-    private final JTextField addressField = new JTextField(18);
-    private final JTextField userField = new JTextField(18);
-    private final JPasswordField passwordField = new JPasswordField(18);
-    private final JSpinner memoryField;
-    private final JCheckBox connectBox = new JCheckBox("Сразу подключиться к серверу", true);
-    private final JProgressBar progress = new JProgressBar(0, 1000);
-    private final JLabel status = new JLabel(" ");
-    private final JButton playButton = new JButton("Играть");
-    private final JButton skinButton = new JButton("Скин…");
-    private final JButton passwordButton = new JButton("Пароль…");
-    private final JButton logButton = new JButton("Журнал");
-    private final JTextArea logArea = new JTextArea(12, 60);
-    private final JScrollPane logPane = new JScrollPane(logArea);
+    private final Background root;
+    private final Glass loginBox = new Glass(true);
+    private final Glass settingsBox = new Glass(false);
+    private final LogoPanel logo = new LogoPanel();
+    private final GearButton gear;
+
+    private final JLabel userLabel;
+    private final JLabel passwordLabel;
+    private final Fields.TextField userField;
+    private final Fields.PasswordField passwordField;
+    private final Buttons playButton;
+    private final ProgressBar progress;
+    private final JLabel status;
+
+    private final JLabel memoryLabel;
+    private final MemorySlider memory;
+    private final JLabel addressLabel;
+    private final Fields.TextField addressField;
+    private final Check autoConnect;
+    private final JLabel themeLabel;
+    private final Segmented themeChoice;
+    private final Buttons skinButton;
+    private final Buttons changePasswordButton;
+    private final Buttons logButton;
+
+    private final JTextArea logArea = new JTextArea();
+    private JDialog logDialog;
 
     private volatile boolean busy;
     private volatile boolean cancelled;
 
     private MainWindow(Config cfg) {
         this.cfg = cfg;
-        memoryField = new JSpinner(new SpinnerNumberModel(
-                cfg.getInt("memory", 1024), 512, 8192, 256));
+        this.k = windowScale();
+
+        root = new Background(Theme.isDay(cfg.get("theme", "night"))) {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            protected void layoutContent() {
+                place();
+            }
+        };
+
+        userLabel = label("Логин:", 14);
+        passwordLabel = label("Пароль:", 14);
+        userField = Fields.text(k, null);
+        passwordField = Fields.password(k, null);
+        playButton = Buttons.primary("Войти", k);
+        progress = new ProgressBar(k);
+        status = label(" ", 12);
+
+        memory = new MemorySlider(512, 4096, 512, cfg.getInt("memory", 2048), k);
+        memoryLabel = label("Выделенная память: " + memory.text(), 14);
+        addressLabel = label("Адрес сервера авторизации", 14);
+        addressField = Fields.text(k, "localhost");
+        autoConnect = new Check("Подключаться к серверу сразу",
+                !"false".equals(cfg.get("autoconnect", "true")), k);
+        themeLabel = label("Тема оформления", 14);
+        themeChoice = new Segmented(THEME_LABELS, THEME_VALUES, k);
+        skinButton = Buttons.small("Загрузить скин…", k);
+        changePasswordButton = Buttons.small("Сменить пароль…", k);
+        logButton = Buttons.small("Журнал", k);
+        gear = new GearButton("Настройки", k);
+
         build();
     }
 
     static void open(final Config cfg) {
-        theme();
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
                 new MainWindow(cfg).frame.setVisible(true);
@@ -76,139 +133,235 @@ final class MainWindow {
         });
     }
 
-    /** FlatLaf, если он оказался рядом; иначе оформление системы. */
-    private static void theme() {
-        try {
-            UIManager.setLookAndFeel(Class.forName("com.formdev.flatlaf.FlatLightLaf")
-                    .asSubclass(javax.swing.LookAndFeel.class).newInstance());
-            return;
-        } catch (Throwable ignored) {
-            // FlatLaf не вложен в раздачу — не беда
-        }
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception ignored) {
-            // останется оформление по умолчанию
-        }
+    /** Макет нарисован под 1280x800; на экран поменьше окно ужимается целиком. */
+    private static double windowScale() {
+        Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+        double byWidth = (screen.width - 80.0) / Theme.DESIGN_W;
+        double byHeight = (screen.height - 120.0) / Theme.DESIGN_H;
+        return Math.max(0.55, Math.min(1.0, Math.min(byWidth, byHeight)));
+    }
+
+    private JLabel label(String text, float size) {
+        JLabel label = new JLabel(text);
+        label.setFont(Theme.font((float) (size * k), false));
+        label.setForeground(Theme.TEXT);
+        return label;
     }
 
     // ------------------------------------------------------------ сборка окна
 
     private void build() {
-        JLabel title = new JLabel("W-Factory");
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
-        JLabel subtitle = new JLabel("Minecraft 1.6.4 — города и прокачка");
-        subtitle.setFont(subtitle.getFont().deriveFont(Font.PLAIN, 12f));
-
-        JPanel head = new JPanel();
-        head.setLayout(new BoxLayout(head, BoxLayout.Y_AXIS));
-        head.setBorder(BorderFactory.createEmptyBorder(14, 16, 10, 16));
-        title.setAlignmentX(0f);
-        subtitle.setAlignmentX(0f);
-        head.add(title);
-        head.add(subtitle);
-
-        JPanel form = new JPanel(new GridBagLayout());
-        form.setBorder(BorderFactory.createEmptyBorder(0, 16, 4, 16));
-        GridBagConstraints c = new GridBagConstraints();
-        c.insets = new Insets(4, 0, 4, 8);
-        c.anchor = GridBagConstraints.WEST;
-        c.gridx = 0; c.gridy = 0;
-        form.add(new JLabel("Адрес сервера"), c);
-        c.gridx = 1; c.fill = GridBagConstraints.HORIZONTAL; c.weightx = 1;
-        form.add(addressField, c);
-        c.gridx = 0; c.gridy = 1; c.fill = GridBagConstraints.NONE; c.weightx = 0;
-        form.add(new JLabel("Ник"), c);
-        c.gridx = 1; c.fill = GridBagConstraints.HORIZONTAL; c.weightx = 1;
-        form.add(userField, c);
-        c.gridx = 0; c.gridy = 2; c.fill = GridBagConstraints.NONE; c.weightx = 0;
-        form.add(new JLabel("Пароль"), c);
-        c.gridx = 1; c.fill = GridBagConstraints.HORIZONTAL; c.weightx = 1;
-        form.add(passwordField, c);
-
-        JPanel memory = new JPanel();
-        memory.setLayout(new BoxLayout(memory, BoxLayout.X_AXIS));
-        memory.add(new JLabel("Память "));
-        memoryField.setMaximumSize(new Dimension(90, 26));
-        memory.add(memoryField);
-        memory.add(new JLabel(" МБ"));
-        memory.add(Box.createHorizontalGlue());
-        c.gridx = 1; c.gridy = 3;
-        form.add(memory, c);
-        c.gridx = 1; c.gridy = 4;
-        form.add(connectBox, c);
-
+        loginBox.add(userLabel);
+        loginBox.add(userField);
+        loginBox.add(passwordLabel);
+        loginBox.add(passwordField);
+        loginBox.add(playButton);
+        loginBox.add(progress);
+        loginBox.add(status);
         progress.setVisible(false);
-        progress.setStringPainted(false);
-        status.setFont(status.getFont().deriveFont(Font.PLAIN, 12f));
 
-        JPanel middle = new JPanel();
-        middle.setLayout(new BoxLayout(middle, BoxLayout.Y_AXIS));
-        middle.setBorder(BorderFactory.createEmptyBorder(6, 16, 6, 16));
-        progress.setAlignmentX(0f);
-        status.setAlignmentX(0f);
-        middle.add(progress);
-        middle.add(Box.createVerticalStrut(4));
-        middle.add(status);
+        settingsBox.add(memoryLabel);
+        settingsBox.add(memory);
+        settingsBox.add(addressLabel);
+        settingsBox.add(addressField);
+        settingsBox.add(autoConnect);
+        settingsBox.add(themeLabel);
+        settingsBox.add(themeChoice);
+        settingsBox.add(skinButton);
+        settingsBox.add(changePasswordButton);
+        settingsBox.setVisible(false);
 
-        JPanel buttons = new JPanel();
-        buttons.setLayout(new BoxLayout(buttons, BoxLayout.X_AXIS));
-        buttons.setBorder(BorderFactory.createEmptyBorder(4, 16, 14, 16));
-        playButton.setFont(playButton.getFont().deriveFont(Font.BOLD, 14f));
-        buttons.add(playButton);
-        buttons.add(Box.createHorizontalStrut(8));
-        buttons.add(skinButton);
-        buttons.add(Box.createHorizontalStrut(8));
-        buttons.add(passwordButton);
-        buttons.add(Box.createHorizontalGlue());
-        buttons.add(logButton);
-
-        logArea.setEditable(false);
-        logArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
-        logPane.setVisible(false);
-        logPane.setBorder(BorderFactory.createEmptyBorder(0, 16, 12, 16));
-
-        JPanel content = new JPanel();
-        content.setLayout(new BorderLayout());
-        JPanel top = new JPanel();
-        top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
-        // BoxLayout центрирует то, что уже контейнера, — без этого заголовок
-        // и форма уезжают к правому краю
-        for (JPanel panel : new JPanel[] { head, form, middle, buttons }) {
-            panel.setAlignmentX(0f);
-            top.add(panel);
-        }
-        content.add(top, BorderLayout.NORTH);
-        content.add(logPane, BorderLayout.CENTER);
+        // Swing рисует детей от последнего к первому, поэтому добавляем сверху
+        // вниз — как складываются слои в макете: кнопки, меню, логотип, окно
+        // входа. Логотип нависает над окном входа, но уходит под меню настроек.
+        root.add(gear);
+        root.add(logButton);
+        root.add(settingsBox);
+        root.add(logo);
+        root.add(loginBox);
 
         addressField.setText(cfg.get("address", "localhost"));
         userField.setText(cfg.get("username", ""));
-        connectBox.setSelected(!"false".equals(cfg.get("autoconnect", "true")));
+        themeChoice.select(cfg.get("theme", "night"));
 
-        playButton.addActionListener(e -> onPlay());
-        skinButton.addActionListener(e -> onSkin());
-        passwordButton.addActionListener(e -> onPassword());
-        logButton.addActionListener(e -> toggleLog());
-        frame.getRootPane().setDefaultButton(playButton);
+        playButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                onPlay();
+            }
+        });
+        skinButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                onSkin();
+            }
+        });
+        changePasswordButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                onPassword();
+            }
+        });
+        logButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                toggleLog();
+            }
+        });
+        gear.onClick(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                boolean showing = !settingsBox.isVisible();
+                settingsBox.setVisible(showing);
+                loginBox.setVisible(!showing);
+                if (!showing) saveSettings();
+                root.repaint();
+            }
+        });
+        memory.onChange(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                memoryLabel.setText("Выделенная память: " + memory.text());
+            }
+        });
+        themeChoice.onChange(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                cfg.set("theme", themeChoice.selected());
+                cfg.save();
+                root.setDay(Theme.isDay(themeChoice.selected()));
+                logo.repaint();
+            }
+        });
 
-        Log.listen(text -> SwingUtilities.invokeLater(() -> {
-            logArea.append(text + "\n");
-            logArea.setCaretPosition(logArea.getDocument().getLength());
-        }));
+        Log.listen(new Log.Sink() {
+            public void line(final String text) {
+                SwingUtilities.invokeLater(new Runnable() {
+                    public void run() {
+                        logArea.append(text + "\n");
+                        logArea.setCaretPosition(logArea.getDocument().getLength());
+                    }
+                });
+            }
+        });
 
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setContentPane(content);
+        frame.setContentPane(root);
+        root.setPreferredSize(new Dimension(
+                (int) (Theme.DESIGN_W * k), (int) (Theme.DESIGN_H * k)));
+        frame.getRootPane().setDefaultButton(playButton);
+        frame.setResizable(false);
         frame.pack();
-        // pack() считает по минимуму, а кнопкам и подписям нужен воздух:
-        // без этого правый край режет «Журнал»
-        frame.setSize(Math.max(frame.getWidth(), 520), frame.getHeight());
-        frame.setMinimumSize(frame.getSize());
         frame.setLocationRelativeTo(null);
+        BufferedImage icon = Theme.logo(root.isDay());
+        if (icon != null) frame.setIconImage(icon);
     }
 
-    private void toggleLog() {
-        logPane.setVisible(!logPane.isVisible());
-        frame.pack();
+    /** Расстановка по пропорциям макета; вызывается при каждой перекладке. */
+    private void place() {
+        int width = root.getWidth();
+        int height = root.getHeight();
+        int middle = (int) Math.round(height * 0.486);   // top: 48.6% из макета
+
+        int boxWidth = root.s(512);                      // width: 40%
+        int boxHeight = root.s(308);
+        loginBox.setBounds((width - boxWidth) / 2, middle - boxHeight / 2, boxWidth, boxHeight);
+
+        int menuWidth = root.s(563);                     // width: 44%
+        int menuHeight = root.s(339);
+        settingsBox.setBounds((width - menuWidth) / 2, middle - menuHeight / 2,
+                menuWidth, menuHeight);
+
+        int logoWidth = root.s(411);                     // 0.67 * 48%
+        int logoHeight = (int) Math.round(logoWidth * LOGO_ASPECT);
+        logo.setBounds((width - logoWidth) / 2,
+                middle - root.s(140) - (int) (logoHeight * 0.65), logoWidth, logoHeight);
+
+        gear.setBounds(width - root.s(16) - gear.fullWidth(), root.s(16),
+                gear.fullWidth(), gear.fullHeight());
+
+        Dimension logSize = logButton.getPreferredSize();
+        logButton.setBounds(width - root.s(16) - logSize.width,
+                height - root.s(16) - logSize.height, logSize.width, logSize.height);
+
+        placeLogin(boxWidth, boxHeight);
+        placeSettings(menuWidth, menuHeight);
+    }
+
+    private void placeLogin(int boxWidth, int boxHeight) {
+        int formWidth = (int) (boxWidth * 0.78);
+        int inputWidth = (int) (formWidth * 0.92);
+        int inputX = (boxWidth - inputWidth) / 2;
+
+        int labelHeight = root.s(17);
+        int gap = root.s(5);
+        int inputHeight = root.s(45);
+        int betweenFields = root.s(10.5);
+        int buttonTop = root.s(24);
+        int buttonHeight = root.s(38);
+        int buttonWidth = (int) (formWidth * 0.45);
+
+        int formHeight = labelHeight + gap + inputHeight + betweenFields
+                + labelHeight + gap + inputHeight + buttonTop + buttonHeight;
+        int paddingTop = root.s(40);
+        // justify-content: center внутри padding-box плюс transform: translateY(-15px)
+        int y = paddingTop + (boxHeight - paddingTop - formHeight) / 2 - root.s(15);
+
+        userLabel.setBounds(inputX, y, inputWidth, labelHeight);
+        y += labelHeight + gap;
+        userField.setBounds(inputX, y, inputWidth, inputHeight);
+        y += inputHeight + betweenFields;
+        passwordLabel.setBounds(inputX, y, inputWidth, labelHeight);
+        y += labelHeight + gap;
+        passwordField.setBounds(inputX, y, inputWidth, inputHeight);
+        y += inputHeight + buttonTop;
+        playButton.setBounds((boxWidth - buttonWidth) / 2, y, buttonWidth, buttonHeight);
+
+        progress.setBounds(inputX, boxHeight - root.s(40), inputWidth, root.s(10));
+        status.setBounds(inputX, boxHeight - root.s(28), inputWidth, root.s(20));
+    }
+
+    private void placeSettings(int menuWidth, int menuHeight) {
+        int fieldWidth = (int) (menuWidth * 0.8);
+        int x = (menuWidth - fieldWidth) / 2;
+        int labelHeight = root.s(17);
+        int inner = root.s(8);
+        int gap = root.s(20);
+        int sliderHeight = root.s(16);
+        int inputHeight = root.s(39);
+        int rowHeight = root.s(20);
+        int choiceHeight = root.s(30);
+        int buttonHeight = root.s(30);
+
+        int total = labelHeight + inner + sliderHeight
+                + gap + labelHeight + inner + inputHeight
+                + gap + rowHeight
+                + gap + labelHeight + inner + choiceHeight
+                + gap + buttonHeight;
+        int y = (menuHeight - total) / 2;
+
+        memoryLabel.setBounds(x, y, fieldWidth, labelHeight);
+        y += labelHeight + inner;
+        memory.setBounds(x, y, fieldWidth, sliderHeight);
+        y += sliderHeight + gap;
+
+        addressLabel.setBounds(x, y, fieldWidth, labelHeight);
+        y += labelHeight + inner;
+        addressField.setBounds(x, y, fieldWidth, inputHeight);
+        y += inputHeight + gap;
+
+        autoConnect.setBounds(x, y, fieldWidth, rowHeight);
+        y += rowHeight + gap;
+
+        themeLabel.setBounds(x, y, fieldWidth, labelHeight);
+        y += labelHeight + inner;
+        themeChoice.setBounds(x, y, fieldWidth, choiceHeight);
+        y += choiceHeight + gap;
+
+        int half = (fieldWidth - root.s(6)) / 2;
+        skinButton.setBounds(x, y, half, buttonHeight);
+        changePasswordButton.setBounds(x + half + root.s(6), y, half, buttonHeight);
+    }
+
+    private void saveSettings() {
+        cfg.set("address", addressField.getText().trim());
+        cfg.set("memory", String.valueOf(memory.value()));
+        cfg.set("autoconnect", String.valueOf(autoConnect.isChecked()));
+        cfg.set("theme", themeChoice.selected());
+        cfg.save();
     }
 
     // -------------------------------------------------------------- действия
@@ -223,22 +376,20 @@ final class MainWindow {
         final String user = userField.getText().trim();
         final String password = new String(passwordField.getPassword());
         if (user.isEmpty() || password.isEmpty()) {
-            status.setText("Введите ник и пароль");
+            status.setText("Введите логин и пароль");
             return;
         }
-        cfg.set("address", raw);
+        saveSettings();
         cfg.set("username", user);
-        cfg.set("memory", String.valueOf(memoryField.getValue()));
-        cfg.set("autoconnect", String.valueOf(connectBox.isSelected()));
         cfg.save();
 
         busy = true;
         cancelled = false;
         playButton.setText("Отмена");
         skinButton.setEnabled(false);
-        passwordButton.setEnabled(false);
+        changePasswordButton.setEnabled(false);
         progress.setVisible(true);
-        progress.setIndeterminate(true);
+        progress.setRunning(true);
         status.setText("Соединяюсь с сервером…");
 
         new Thread(new Runnable() {
@@ -255,20 +406,22 @@ final class MainWindow {
             Auth.Session session = Auth.login(base, user, password);
             Log.info("вход выполнен: %s", session.username);
             if (session.mustChangePassword) {
-                say("Пароль совпадает с ником — смените его кнопкой «Пароль…»");
+                say("Пароль совпадает с логином — смените его в настройках");
             }
 
             Manifest manifest = Manifest.fetch(base);
             File client = new Installer(cfg, manifest, base, watcher()).run();
 
             List<String> command = GameRunner.command(cfg, manifest, client, session,
-                    connectBox.isSelected() ? address : null);
+                    autoConnect.isChecked() ? address : null);
             final Process game = GameRunner.start(cfg, command);
             SwingUtilities.invokeLater(new Runnable() {
                 public void run() {
-                    progress.setIndeterminate(false);
+                    progress.setRunning(false);
                     progress.setVisible(false);
                     status.setText("Игра запущена");
+                    // отменять уже нечего: сборка на месте, игра живёт сама
+                    playButton.setEnabled(false);
                     frame.setExtendedState(JFrame.ICONIFIED);
                 }
             });
@@ -280,22 +433,22 @@ final class MainWindow {
             SwingUtilities.invokeLater(new Runnable() {
                 public void run() {
                     frame.setExtendedState(JFrame.NORMAL);
-                    logPane.setVisible(true);
-                    frame.pack();
+                    showLog();
                 }
             });
-            fail("Игра завершилась с ошибкой (код " + code + ") — подробности в журнале");
+            say("Игра завершилась с ошибкой (код " + code + ") — подробности в журнале");
         } catch (Exception e) {
             Log.error("запуск не удался", e);
-            fail(Log.describe(e));
+            say(Log.describe(e));
         } finally {
             SwingUtilities.invokeLater(new Runnable() {
                 public void run() {
                     busy = false;
-                    playButton.setText("Играть");
+                    playButton.setText("Войти");
+                    playButton.setEnabled(true);
                     skinButton.setEnabled(true);
-                    passwordButton.setEnabled(true);
-                    progress.setIndeterminate(false);
+                    changePasswordButton.setEnabled(true);
+                    progress.setRunning(false);
                     progress.setVisible(false);
                 }
             });
@@ -308,7 +461,8 @@ final class MainWindow {
                 SwingUtilities.invokeLater(new Runnable() {
                     public void run() {
                         status.setText(text);
-                        progress.setIndeterminate(true);
+                        progress.setVisible(true);
+                        progress.setRunning(true);
                     }
                 });
             }
@@ -316,8 +470,8 @@ final class MainWindow {
             public void bytes(final long done, final long total) {
                 SwingUtilities.invokeLater(new Runnable() {
                     public void run() {
-                        progress.setIndeterminate(false);
-                        progress.setValue(total > 0 ? (int) (done * 1000 / total) : 0);
+                        progress.setVisible(true);
+                        progress.setFraction(total > 0 ? (double) done / total : 0);
                         status.setText("Качаю: " + Util.size(done) + " из " + Util.size(total));
                     }
                 });
@@ -337,15 +491,14 @@ final class MainWindow {
         final File file = chooser.getSelectedFile();
         final String password = new String(passwordField.getPassword());
         if (password.isEmpty()) {
-            status.setText("Для смены скина введите пароль");
+            say("Для смены скина введите пароль на первом экране");
             return;
         }
         run("Отправляю скин…", new Task() {
             public void go() throws Exception {
                 String base = Address.parse(addressField.getText().trim()).base();
                 Auth.Session session = Auth.login(base, userField.getText().trim(), password);
-                byte[] png = read(file);
-                Auth.uploadSkin(base, session.token, png);
+                Auth.uploadSkin(base, session.token, read(file));
                 say("Скин принят: " + file.getName());
             }
         });
@@ -387,6 +540,33 @@ final class MainWindow {
         });
     }
 
+    // ---------------------------------------------------------------- журнал
+
+    private void toggleLog() {
+        if (logDialog != null && logDialog.isVisible()) {
+            logDialog.setVisible(false);
+            return;
+        }
+        showLog();
+    }
+
+    private void showLog() {
+        if (logDialog == null) {
+            logArea.setEditable(false);
+            logArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, (int) (12 * k)));
+            logArea.setBackground(new Color(22, 22, 22));
+            logArea.setForeground(new Color(220, 220, 220));
+            logArea.setCaretColor(Color.WHITE);
+            JScrollPane pane = new JScrollPane(logArea);
+            pane.setBorder(null);
+            logDialog = new JDialog(frame, "Журнал", false);
+            logDialog.setContentPane(pane);
+            logDialog.setSize(root.s(760), root.s(420));
+            logDialog.setLocationRelativeTo(frame);
+        }
+        logDialog.setVisible(true);
+    }
+
     // ------------------------------------------------------------- мелочёвка
 
     private interface Task {
@@ -396,14 +576,14 @@ final class MainWindow {
     private void run(final String label, final Task task) {
         if (busy) return;
         busy = true;
-        status.setText(label);
+        say(label);
         new Thread(new Runnable() {
             public void run() {
                 try {
                     task.go();
                 } catch (Exception e) {
                     Log.error(label, e);
-                    fail(Log.describe(e));
+                    say(Log.describe(e));
                 } finally {
                     busy = false;
                 }
@@ -419,20 +599,26 @@ final class MainWindow {
         });
     }
 
-    private void fail(final String text) {
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                status.setText(text);
-            }
-        });
-    }
-
     private static byte[] read(File file) throws IOException {
         FileInputStream in = new FileInputStream(file);
         try {
             return Util.readAll(in);
         } finally {
             in.close();
+        }
+    }
+
+    /** Логотип поверх фона; картинка меняется вместе с темой. */
+    private final class LogoPanel extends JComponent {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        protected void paintComponent(Graphics graphics) {
+            BufferedImage image = Theme.logo(root.isDay());
+            if (image == null) return;
+            Graphics2D g = Theme.smooth((Graphics2D) graphics.create());
+            g.drawImage(image, 0, 0, getWidth(), getHeight(), null);
+            g.dispose();
         }
     }
 }
