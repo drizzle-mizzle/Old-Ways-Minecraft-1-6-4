@@ -102,7 +102,8 @@ public final class Main {
                 return 0;
             }
 
-            List<String> command = GameRunner.command(cfg, manifest, client, session, address);
+            List<String> command = GameRunner.command(cfg, manifest, client, session,
+                    address, base);
             Process game = GameRunner.start(cfg, command);
             int code = game.waitFor();
             Log.info("игра завершилась с кодом %d", code);

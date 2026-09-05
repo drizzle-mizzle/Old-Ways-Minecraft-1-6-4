@@ -92,6 +92,7 @@ final class MainWindow {
     private final Fields.TextField heightField;
     private final JLabel sizeCross;
     private final Check fullscreen;
+    private final CloseButton settingsClose;
 
     private final SkinView skinView;
     private final Buttons changeSkinButton;
@@ -168,6 +169,8 @@ final class MainWindow {
         sizeCross.setHorizontalAlignment(SwingConstants.CENTER);
         fullscreen = new Check("Полный экран",
                 "true".equals(cfg.get("game.fullscreen", "false")), k);
+
+        settingsClose = new CloseButton(k);
 
         skinView = new SkinView(k);
         changeSkinButton = Buttons.small("Изменить скин…", k);
@@ -265,6 +268,7 @@ final class MainWindow {
         progress.setVisible(false);
         status.setHorizontalAlignment(SwingConstants.CENTER);
 
+        settingsBox.add(settingsClose);
         settingsBox.add(memoryLabel);
         settingsBox.add(memory);
         settingsBox.add(addressLabel);
@@ -350,6 +354,11 @@ final class MainWindow {
         savePasswordButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 submitPassword();
+            }
+        });
+        settingsClose.onClick(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                showPanel("login");
             }
         });
         accountClose.onClick(new ActionListener() {
@@ -534,6 +543,9 @@ final class MainWindow {
     }
 
     private void placeSettings(int menuWidth, int menuHeight) {
+        int close = root.s(26);
+        settingsClose.setBounds(menuWidth - root.s(14) - close, root.s(14), close, close);
+
         int fieldWidth = (int) (menuWidth * 0.8);
         int x = (menuWidth - fieldWidth) / 2;
         int labelHeight = root.s(17);
@@ -813,7 +825,7 @@ final class MainWindow {
             File client = new Installer(cfg, manifest, base, watcher()).run();
 
             List<String> command = GameRunner.command(cfg, manifest, client, current,
-                    autoConnect.isChecked() ? address : null);
+                    autoConnect.isChecked() ? address : null, base);
             final Process game = GameRunner.start(cfg, command);
             SwingUtilities.invokeLater(new Runnable() {
                 public void run() {

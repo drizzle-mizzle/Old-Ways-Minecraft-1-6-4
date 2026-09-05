@@ -1,0 +1,8 @@
+{
+ "lzma/lzma/0.0.1/lzma-0.0.1.jar": "521616dc7487b42bef0e803bd2fa3faf668101d7",
+ "net/minecraft/launchwrapper/1.8/launchwrapper-1.8.jar": "d4c0895977dd7f0b3f56281cee53a64d4c0c0322",
+ "net/minecraftforge/minecraftforge/9.11.1.1345/minecraftforge-9.11.1.1345.jar": "eb9d954c8d057fa1768acaa40a35b864ad05c58b",
+ "org/ow2/asm/asm-all/4.1/asm-all-4.1.jar": "054986e962b88d8660ae4566475658469595ef58",
+ "org/scala-lang/scala-compiler/2.10.2/scala-compiler-2.10.2.jar": "64c8b1380cc53d6850823d6e4e7ae984aa44ef9c",
+ "org/scala-lang/scala-library/2.10.2/scala-library-2.10.2.jar": "6ba65d12cd09d441083262d6f73d2257fec7c663"
+}

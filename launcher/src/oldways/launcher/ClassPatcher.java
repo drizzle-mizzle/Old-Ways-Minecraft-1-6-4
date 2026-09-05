@@ -16,9 +16,14 @@ import java.util.List;
  * сработал бы ровно один раз, и смена адреса требовала бы новой раздачи —
  * а лаунчер как раз должен перепатчивать клиент при смене адреса.
  */
-final class ClassPatcher {
+public final class ClassPatcher {
 
-    static final class ClassFormatException extends RuntimeException {
+    /** Кому рассказать о замене: лаунчер пишет в журнал, coremod — в консоль игры. */
+    public interface Note {
+        void changed(String from, String to);
+    }
+
+    public static final class ClassFormatException extends RuntimeException {
         private static final long serialVersionUID = 1L;
 
         ClassFormatException(String message) {
@@ -34,6 +39,15 @@ final class ClassPatcher {
             "/MinecraftCloaks/%s.png",
     };
     private static final boolean[] IS_AUTH = { true, true, false, false };
+
+    /**
+     * Плащи OptiFine.
+     *
+     * OptiFine поверх обычного плаща тянет свой, с s.optifine.net, и делает
+     * это по имени игрока. На своём сервере ходить туда незачем и нечем —
+     * адрес заворачивается на нашу же раздачу плащей.
+     */
+    private static final String OPTIFINE_CAPES = "http://s.optifine.net/capes/";
 
     private static final int MAGIC = 0xcafebabe;
 
@@ -154,15 +168,21 @@ final class ClassPatcher {
     /** Новый адрес для константы или null, если она нас не касается. */
     private static String rewrite(String text, String auth, String skin) {
         if (!(text.startsWith("http://") || text.startsWith("https://"))) return null;
+        if (text.equals(OPTIFINE_CAPES)) {
+            return trim(skin) + "/MinecraftCloaks/";
+        }
         for (int i = 0; i < SUFFIXES.length; i++) {
             if (text.endsWith(SUFFIXES[i])) {
-                String base = IS_AUTH[i] ? auth : skin;
-                while (base.endsWith("/")) base = base.substring(0, base.length() - 1);
-                String replacement = base + SUFFIXES[i];
+                String replacement = trim(IS_AUTH[i] ? auth : skin) + SUFFIXES[i];
                 return replacement.equals(text) ? null : replacement;
             }
         }
         return null;
+    }
+
+    private static String trim(String base) {
+        while (base.endsWith("/")) base = base.substring(0, base.length() - 1);
+        return base;
     }
 
     private static String utf8(byte[] bytes) {
@@ -185,7 +205,17 @@ final class ClassPatcher {
      * Переписывает адреса. Возвращает новый class-файл или null, если менять
      * нечего — тогда вызывающий кладёт исходные байты и не тратит время.
      */
-    static byte[] patch(byte[] data, String authBase, String skinBase) {
+    public static byte[] patch(byte[] data, String authBase, String skinBase) {
+        return patch(data, authBase, skinBase, null);
+    }
+
+    /**
+     * То же, но с уведомлением о каждой замене.
+     *
+     * Класс должен оставаться без единой зависимости: его же байтами живёт
+     * coremod внутри игры, где ни журнала лаунчера, ни его настроек нет.
+     */
+    public static byte[] patch(byte[] data, String authBase, String skinBase, Note note) {
         ClassPatcher reader = new ClassPatcher(data);
         List<Entry> entries = reader.validate();
         int poolEnd = reader.poolEnd;
@@ -196,7 +226,7 @@ final class ClassPatcher {
             String text = utf8(entry.payload);
             String replacement = rewrite(text, authBase, skinBase);
             if (replacement != null) {
-                Log.info("    %s -> %s", text, replacement);
+                if (note != null) note.changed(text, replacement);
                 entry.payload = bytes(replacement);
                 changed = true;
             }
@@ -226,7 +256,7 @@ final class ClassPatcher {
     }
 
     /** Адреса, на которые class-файл смотрит сейчас — для журнала и сверки. */
-    static List<String> findUrls(byte[] data) {
+    public static List<String> findUrls(byte[] data) {
         List<String> found = new ArrayList<String>();
         for (Entry entry : new ClassPatcher(data).readPool()) {
             if (entry.tag != 1) continue;

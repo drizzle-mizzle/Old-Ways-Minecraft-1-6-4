@@ -194,6 +194,10 @@ final class Installer {
      */
     private File client() throws IOException {
         File source = cfg.local(manifest.client);
+        if (!manifest.patchClient) {
+            // адреса правит coremod при загрузке классов — jar остаётся ванильным
+            return source;
+        }
         File target = new File(source.getParentFile(), manifest.id + "-run.jar");
         String sourceHash = Util.sha1(source);
 

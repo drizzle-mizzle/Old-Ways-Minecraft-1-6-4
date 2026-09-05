@@ -32,6 +32,14 @@ final class Manifest {
     final String arguments;
     final String assets;
     final String client;
+    /**
+     * Правит ли лаунчер адреса прямо в клиентском jar.
+     *
+     * С Forge — нет: FML накладывает на классы двоичные заплатки и сверяет
+     * их с исходником, поэтому строки меняет coremod уже в игре. Раздача без
+     * Forge остаётся с прежним порядком, там патчить некому.
+     */
+    final boolean patchClient;
     final List<String> classpath;
     final List<String> natives;
     final List<FileEntry> files;
@@ -50,6 +58,7 @@ final class Manifest {
         arguments = Json.str(root, "arguments");
         assets = Json.str(root, "assets", "legacy");
         client = Json.str(root, "client");
+        patchClient = Json.bool(root, "patchClient");
         classpath = strings(Json.map(root.get("classpath")).get(Util.OS));
         natives = strings(Json.map(root.get("natives")).get(Util.OS));
 

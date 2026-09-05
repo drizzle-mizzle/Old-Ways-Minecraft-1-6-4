@@ -31,6 +31,14 @@ final class GameRunner {
 
     static List<String> command(Config cfg, Manifest manifest, File clientJar,
                                 Auth.Session session, Address address) {
+        return command(cfg, manifest, clientJar, session, address, null);
+    }
+
+    /**
+     * @param authBase адрес нашего сервиса для coremod; null — не передавать
+     */
+    static List<String> command(Config cfg, Manifest manifest, File clientJar,
+                                Auth.Session session, Address address, String authBase) {
         StringBuilder classpath = new StringBuilder();
         for (String path : manifest.classpath) {
             classpath.append(cfg.local(path).getPath()).append(File.pathSeparatorChar);
@@ -47,6 +55,17 @@ final class GameRunner {
         // 1.6.4 родом из времён, когда заголовок окна брали из системы;
         // на Linux без этого окно называется просто java
         command.add("-Dorg.lwjgl.opengl.Window.undecorated=false");
+        if (!manifest.patchClient) {
+            if (authBase != null) {
+                // по нему coremod правит адреса авторизации, скинов и плащей
+                command.add("-Doldways.auth=" + authBase);
+            }
+            // Клиент 1.6.4 подписан ключом 2013 года, а Java 8 такие подписи
+            // давно не проверяет: сертификатов у классов нет, и FML считает
+            // подлинный jar подделанным. Файл при этом сходится по хешу с
+            // эталоном Mojang — сверку делает сам лаунчер, до запуска.
+            command.add("-Dfml.ignoreInvalidMinecraftCertificates=true");
+        }
         command.add("-cp");
         command.add(classpath.toString());
         command.add(manifest.mainClass);

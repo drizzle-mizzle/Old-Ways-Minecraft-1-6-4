@@ -22,6 +22,13 @@ import java.util.zip.ZipOutputStream;
  */
 final class JarTool {
 
+    /** Каждая замена адреса уходит в журнал: по нему потом видно, что вышло. */
+    private static final ClassPatcher.Note LOG_CHANGES = new ClassPatcher.Note() {
+        public void changed(String from, String to) {
+            Log.info("    %s -> %s", from, to);
+        }
+    };
+
     private static final String[] SIGNATURE_SUFFIXES = { ".SF", ".DSA", ".RSA", ".EC" };
 
     private JarTool() {}
@@ -98,7 +105,7 @@ final class JarTool {
                 if (name.endsWith(".class")) {
                     byte[] replacement;
                     try {
-                        replacement = ClassPatcher.patch(data, authBase, skinBase);
+                        replacement = ClassPatcher.patch(data, authBase, skinBase, LOG_CHANGES);
                     } catch (RuntimeException e) {
                         // без имени класса такую поломку не найти
                         throw new IOException(name + ": " + Log.describe(e), e);
