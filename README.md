@@ -77,6 +77,51 @@ docker compose up -d auth                 # сервис отдаёт её на 
 `flower` создаётся при первом старте; **пароль по умолчанию совпадает с ником**
 — задайте свой в `WF_ADMIN_PASSWORD` до выхода наружу.
 
+## Попробовать целиком на одной машине
+
+Сервер, сервис авторизации и лаунчер поднимаются рядом и работают друг с другом.
+
+**1. Раздача клиента** — один раз, из зеркала (`tools/fetch_client.py`, если
+зеркала ещё нет):
+
+```
+python tools/build_dist.py --out dist
+```
+
+**2. Сервер и сервис.** Простой вариант — `docker compose up -d`: сервер
+поднимется с `online-mode=false` и никого не проверяет, лаунчер при этом
+работает. Чтобы сервер спрашивал разрешение у сервиса, как это будет в бою:
+
+```
+python tools/patch_jars.py --input spigot-1.6.4-R2.1.jar --output server-auth.jar --auth-base http://auth:8080 --skin-base http://auth:8080
+docker compose -f docker-compose.yml -f docker/compose.online.yml up -d
+docker exec mc164 sh -c "sed -i 's/^online-mode=false/online-mode=true/' /data/server.properties"
+docker restart mc164
+```
+
+Сервер ходит к сервису по имени `auth:8080` внутри сети Docker, лаунчер на
+хосте — на `localhost:8080`; служба одна и та же, поэтому рукопожатие сходится.
+
+**3. Лаунчер:**
+
+```
+python launcher/build.py
+jre8in\javaw.exe -jar launcheruild\wfactory-launcher.jar
+```
+
+Логин `flower`, пароль тот же. Адрес по умолчанию — `localhost`, менять
+не нужно; он и остальные настройки живут под шестерёнкой. Первый запуск
+скачает сборку (~118 МБ с локального же сервиса) в `%APPDATA%\.w-factory`,
+дальше запуск занимает секунду. Что происходит, видно по кнопке «Журнал»
+и в `%APPDATA%\.w-factory\launcher.log`.
+
+Вернуть сервер к простому режиму:
+
+```
+docker exec mc164 sh -c "sed -i 's/^online-mode=true/online-mode=false/' /data/server.properties"
+docker compose up -d --force-recreate minecraft
+```
+
 Устройство и принятые решения — в [docs/launcher-wip.md](docs/launcher-wip.md).
 Рядом: патчер джарников (`tools/patch_jars.py`) и зеркало набора запуска
 клиента (`tools/fetch_client.py`), из которого собирается раздача.

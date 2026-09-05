@@ -1,0 +1,23 @@
+# Включает проверку входа через свой сервис авторизации.
+#
+# Обычный docker-compose.yml поднимает сервер с online-mode=false: заходить
+# можно под любым ником, лаунчер при этом работает, но сервер ничего не
+# проверяет. Этот слой подменяет ядро на пропатченное, чтобы сервер спрашивал
+# разрешение у сервиса.
+#
+#   python tools/patch_jars.py --input spigot-1.6.4-R2.1.jar \
+#       --output server-auth.jar --auth-base http://auth:8080 --skin-base http://auth:8080
+#   docker compose -f docker-compose.yml -f docker/compose.online.yml up -d
+#   docker exec mc164 sh -c "sed -i 's/^online-mode=false/online-mode=true/' /data/server.properties"
+#   docker restart mc164
+#
+# Адрес http://auth:8080 — это имя сервиса в сети compose: сервер ходит к
+# сервису внутри Docker, а лаунчер на хосте — на localhost:8080. Служба одна
+# и та же, поэтому рукопожатие сходится.
+#
+# Пути здесь считаются от каталога проекта, а не от этого файла.
+
+services:
+  minecraft:
+    volumes:
+      - ./server-auth.jar:/opt/mc/server.jar:ro
