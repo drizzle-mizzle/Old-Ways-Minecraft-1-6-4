@@ -106,7 +106,7 @@ docker restart mc164
 
 ```
 python launcher/build.py
-jre8in\javaw.exe -jar launcheruild\wfactory-launcher.jar
+jre8\bin\javaw.exe -jar launcher\build\wfactory-launcher.jar
 ```
 
 Логин `flower`, пароль тот же. Адрес по умолчанию — `localhost`, менять
