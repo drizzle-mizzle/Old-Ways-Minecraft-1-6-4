@@ -1,4 +1,4 @@
-package wfactory.launcher;
+package oldways.launcher;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -33,15 +33,15 @@ final class Config {
         load();
     }
 
-    /** Каталог данных: WF_HOME, иначе %APPDATA%\.w-factory или ~/.w-factory. */
+    /** Каталог данных: OW_HOME, иначе %APPDATA%\.old-ways или ~/.old-ways. */
     static File defaultRoot() {
-        String override = System.getenv("WF_HOME");
+        String override = System.getenv("OW_HOME");
         if (override != null && !override.isEmpty()) return new File(override);
         if ("windows".equals(Util.OS)) {
             String appdata = System.getenv("APPDATA");
-            if (appdata != null && !appdata.isEmpty()) return new File(appdata, ".w-factory");
+            if (appdata != null && !appdata.isEmpty()) return new File(appdata, ".old-ways");
         }
-        return new File(System.getProperty("user.home"), ".w-factory");
+        return new File(System.getProperty("user.home"), ".old-ways");
     }
 
     private void load() {
@@ -63,7 +63,7 @@ final class Config {
             Util.mkdirs(root);
             FileOutputStream out = new FileOutputStream(file);
             try {
-                values.store(out, "W-Factory launcher");
+                values.store(out, "Old Ways launcher");
             } finally {
                 out.close();
             }

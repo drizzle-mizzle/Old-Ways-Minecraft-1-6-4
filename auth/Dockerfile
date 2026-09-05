@@ -1,10 +1,10 @@
-# Сервис авторизации и скинов W-Factory
+# Сервис авторизации и скинов Old Ways
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    WF_DB=/data/auth.sqlite3 \
-    WF_SKINS=/data/skins
+    OW_DB=/data/auth.sqlite3 \
+    OW_SKINS=/data/skins
 
 WORKDIR /srv
 

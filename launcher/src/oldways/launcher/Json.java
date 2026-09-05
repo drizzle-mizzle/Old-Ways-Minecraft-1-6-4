@@ -1,4 +1,4 @@
-package wfactory.launcher;
+package oldways.launcher;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

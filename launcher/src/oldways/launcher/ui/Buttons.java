@@ -1,4 +1,4 @@
-package wfactory.launcher.ui;
+package oldways.launcher.ui;
 
 import javax.swing.JButton;
 import java.awt.Color;

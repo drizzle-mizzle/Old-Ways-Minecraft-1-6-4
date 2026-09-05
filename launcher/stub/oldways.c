@@ -1,13 +1,13 @@
 /*
- * W-Factory: запускатель в одном exe.
+ * Old Ways: запускатель в одном exe.
  *
  * Внутри файла лежит рантайм Java и сам лаунчер, сжатые LZMA. При первом
  * запуске всё распаковывается в папку приложения, дальше запуск идёт сразу.
  * Ничего не устанавливается и не пишется в систему; рядом с exe тоже ничего
  * не появляется — он остаётся одним файлом, который можно держать где угодно.
  *
- *     %LOCALAPPDATA%\W-Factory\runtime\   Java 8
- *     %LOCALAPPDATA%\W-Factory\game\      клиент, ресурсы, миры, настройки
+ *     %LOCALAPPDATA%\Old Ways\runtime\   Java 8
+ *     %LOCALAPPDATA%\Old Ways\game\      клиент, ресурсы, миры, настройки
  *
  * Почему не готовый SFX: все стандартные модули 7-Zip распаковывают во
  * временную папку и стирают её после запуска — это установщик, а нужна
@@ -33,11 +33,11 @@
 
 #include "LzmaDec.h"
 
-#define TRAILER_MAGIC "WFPAY001"
+#define TRAILER_MAGIC "OWPAY001"
 #define TRAILER_SIZE  (8 + 8 + 4 + 8)
 #define LZMA_HEADER   (LZMA_PROPS_SIZE + 8)
 
-static const wchar_t *APP_NAME = L"W-Factory";
+static const wchar_t *APP_NAME = L"Old Ways";
 
 /* ------------------------------------------------------------- окно хода дел */
 
@@ -122,7 +122,7 @@ static void show_window(const wchar_t *note)
     cls.hInstance = GetModuleHandleW(NULL);
     cls.hCursor = LoadCursor(NULL, IDC_ARROW);
     cls.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-    cls.lpszClassName = L"WFactoryUnpack";
+    cls.lpszClassName = L"OldWaysUnpack";
     cls.hIcon = LoadIconW(GetModuleHandleW(NULL), MAKEINTRESOURCEW(1));
     cls.hIconSm = cls.hIcon;
     RegisterClassExW(&cls);
@@ -501,11 +501,11 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
     wchar_t java[MAX_PATH * 2];
     join(java, MAX_PATH * 2, base, L"runtime\\bin\\javaw.exe");
     if (!exists(java))
-        fail(L"Java не распакована. Удалите папку W-Factory в профиле "
+        fail(L"Java не распакована. Удалите папку Old Ways в профиле "
              L"пользователя и запустите снова.");
 
     wchar_t jar[MAX_PATH * 2], home[MAX_PATH * 2];
-    join(jar, MAX_PATH * 2, base, L"wfactory-launcher.jar");
+    join(jar, MAX_PATH * 2, base, L"oldways-launcher.jar");
     join(home, MAX_PATH * 2, base, L"game");
 
     wchar_t line[MAX_PATH * 8];

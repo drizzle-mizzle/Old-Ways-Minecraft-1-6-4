@@ -1,4 +1,4 @@
-package wfactory.launcher;
+package oldways.launcher;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -53,7 +53,7 @@ final class Http {
         HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
         conn.setConnectTimeout(CONNECT_TIMEOUT);
         conn.setReadTimeout(READ_TIMEOUT);
-        conn.setRequestProperty("User-Agent", "W-Factory-Launcher/" + Main.VERSION);
+        conn.setRequestProperty("User-Agent", "Old-Ways-Launcher/" + Main.VERSION);
         return conn;
     }
 

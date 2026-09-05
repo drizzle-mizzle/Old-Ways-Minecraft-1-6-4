@@ -6,7 +6,7 @@
 сборки тут была бы тяжелее самой программы. Нужен JDK 8: собирать надо тем
 же рантаймом, на котором лаунчер будет работать у игрока.
 
-    python launcher/build.py            # соберёт launcher/build/wfactory-launcher.jar
+    python launcher/build.py            # соберёт launcher/build/oldways-launcher.jar
     python launcher/build.py --run --   --cli --address localhost:8080 ...
 """
 
@@ -19,8 +19,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-MAIN_CLASS = 'wfactory.launcher.Main'
-JAR_NAME = 'wfactory-launcher.jar'
+MAIN_CLASS = 'oldways.launcher.Main'
+JAR_NAME = 'oldways-launcher.jar'
 
 
 def find_jdk(explicit):
@@ -38,7 +38,7 @@ def find_jdk(explicit):
 
 
 def main():
-    ap = argparse.ArgumentParser(description='Сборка лаунчера W-Factory.')
+    ap = argparse.ArgumentParser(description='Сборка лаунчера Old Ways.')
     ap.add_argument('--jdk', help='каталог JDK 8')
     ap.add_argument('--clean', action='store_true', help='пересобрать с нуля')
     ap.add_argument('--run', action='store_true', help='запустить после сборки')

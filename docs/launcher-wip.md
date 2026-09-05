@@ -1,4 +1,4 @@
-# Лаунчер W-Factory — рабочие заметки
+# Лаунчер Old Ways — рабочие заметки
 
 > Черновик. Решения по стеку приняты, код самого лаунчера ещё не начат.
 > Готовы и проверены три вещи: патчер джарников (`tools/patch_jars.py`),
@@ -204,7 +204,7 @@ sha1 1703704407101cf72bd88e68579e3696ce733ecd, 4 745 096 байт
 ### Аккаунты
 
 При первом старте создаётся `flower` с правами администратора. Пароль берётся
-из `WF_ADMIN_PASSWORD`, по умолчанию совпадает с ником — это удобно для
+из `OW_ADMIN_PASSWORD`, по умолчанию совпадает с ником — это удобно для
 разработки и небезопасно на публичном хосте. Если пароль равен нику, ответ
 на вход содержит `must_change_password: true`, и сервис пишет предупреждение
 в лог при старте. Проверка живая: вернёте пароль обратно — флаг вернётся.
@@ -239,7 +239,7 @@ python auth/smoke_test.py --base http://127.0.0.1:8080
 1. В раздаче лежит *базовый* клиент — ванильный, позже ванильный плюс моды.
    Он одинаковый у всех, хеш стабильный, обновляется только вместе со сборкой.
 2. В лаунчере поле «адрес сервера». Значение вида `localhost:8080`
-   или `w-factory.ru` — принимается хост с портом или без.
+   или `old-ways.ru` — принимается хост с портом или без.
 3. Перед запуском лаунчер сравнивает введённый адрес с тем, на который
    пропатчен рабочий клиент. Не совпало — пересобирает из базового.
    Это около секунды на 4,7 МБ.
@@ -350,7 +350,7 @@ classpath, natives, и все файлы с sha1 и размером.
 и разбираться, если у игрока не открывается само окно.
 
 ```
-java -jar launcher/build/wfactory-launcher.jar      --cli --address localhost:8080 --user flower --password flower [--no-launch]
+java -jar launcher/build/oldways-launcher.jar      --cli --address localhost:8080 --user flower --password flower [--no-launch]
 ```
 
 ### Окно
@@ -384,7 +384,7 @@ java -jar launcher/build/wfactory-launcher.jar      --cli --address localhost:80
   и остались PNG ради прозрачности. Готовятся из `files/` командой:
 
 ```
-python -c "from PIL import Image; Image.open('files/bg_night.png').convert('RGB').resize((1440,810), Image.LANCZOS).save('launcher/resources/wfactory/launcher/ui/bg_night.jpg','JPEG',quality=92,optimize=True)"
+python -c "from PIL import Image; Image.open('files/bg_night.png').convert('RGB').resize((1440,810), Image.LANCZOS).save('launcher/resources/oldways/launcher/ui/bg_night.jpg','JPEG',quality=92,optimize=True)"
 ```
 
 Хак из макета с вырезанием чёрного фона у `logo_night.png` не понадобился:
@@ -420,11 +420,11 @@ python -c "from PIL import Image; Image.open('files/bg_night.png').convert('RGB'
 
 ## Один exe для игроков: сделано
 
-`launcher/package.py` собирает `W-Factory.exe` — 23 МБ, внутри Java 8
+`launcher/package.py` собирает `Old Ways.exe` — 23 МБ, внутри Java 8
 и лаунчер. Ставить нечего: первый запуск распаковывает рантайм (около
 пятнадцати секунд, с окном хода дел), дальше старт занимает 0,2 с.
 
-Рантайм и игра лежат в `%LOCALAPPDATA%\W-Factory`, рядом с exe не создаётся
+Рантайм и игра лежат в `%LOCALAPPDATA%\Old Ways`, рядом с exe не создаётся
 ничего. Сначала распаковка шла в папку exe — так «переносимее», но это
 захламляет рабочий стол или загрузки, куда файл обычно и кладут. Профиль взят
 локальный, а не перемещаемый: четыреста мегабайт игры незачем таскать
@@ -437,7 +437,7 @@ python -c "from PIL import Image; Image.open('files/bg_night.png').convert('RGB'
 около 400 строк на C, собирается MinGW.
 
 Устройство: в хвосте exe лежат сжатые данные и метка
-`[смещение][длина][crc]["WFPAY001"]`. Распакованная версия отмечается в
+`[смещение][длина][crc]["OWPAY001"]`. Распакованная версия отмечается в
 `runtime\.payload`, и по совпадению длины с crc запускатель понимает,
 что распаковывать заново нечего.
 

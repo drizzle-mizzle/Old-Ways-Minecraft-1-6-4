@@ -2,12 +2,12 @@
 """
 Сборка одного exe: запускатель, рантайм Java и лаунчер в единственном файле.
 
-Что получается на выходе: W-Factory.exe, который ничего не устанавливает.
+Что получается на выходе: Old Ways.exe, который ничего не устанавливает.
 При первом запуске он распаковывает Java рядом с собой и стартует лаунчер;
 дальше запуск идёт сразу. Всё нажитое — рантайм, клиент, ресурсы, миры —
 лежит в той же папке, где exe:
 
-    W-Factory.exe
+    Old Ways.exe
     runtime\\      Java 8
     game\\         клиент, ресурсы, настройки, миры
 
@@ -35,8 +35,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-EXE_NAME = 'W-Factory.exe'
-TRAILER_MAGIC = b'WFPAY001'
+EXE_NAME = 'Old Ways.exe'
+TRAILER_MAGIC = b'OWPAY001'
 
 # Из рантайма выбрасываем то, что игре и лаунчеру не нужно: средства разработки,
 # запуск апплетов, движок JavaScript и данные локалей CLDR (Java 8 по умолчанию
@@ -52,7 +52,7 @@ JRE_DROP_DIRS = ['lib/jfr', 'man', 'lib/missioncontrol', 'lib/visualvm']
 
 MANIFEST = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-  <assemblyIdentity type="win32" name="WFactory.Launcher" version="1.0.0.0"/>
+  <assemblyIdentity type="win32" name="OldWays.Launcher" version="1.0.0.0"/>
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security>
       <requestedPrivileges>
@@ -90,12 +90,12 @@ BEGIN
   BEGIN
     BLOCK "000004b0"
     BEGIN
-      VALUE "CompanyName", "W-Factory"
-      VALUE "FileDescription", "W-Factory - launcher for Minecraft 1.6.4"
+      VALUE "CompanyName", "Old Ways"
+      VALUE "FileDescription", "Old Ways - launcher for Minecraft 1.6.4"
       VALUE "FileVersion", "{ver}"
-      VALUE "InternalName", "W-Factory"
+      VALUE "InternalName", "Old Ways"
       VALUE "OriginalFilename", "{exe}"
-      VALUE "ProductName", "W-Factory"
+      VALUE "ProductName", "Old Ways"
       VALUE "ProductVersion", "{ver}"
     END
   END
@@ -117,7 +117,7 @@ def tool(root, *names):
 
 
 def launcher_version():
-    text = (HERE / 'src/wfactory/launcher/Main.java').read_text(encoding='utf8')
+    text = (HERE / 'src/oldways/launcher/Main.java').read_text(encoding='utf8')
     found = re.search(r'VERSION\s*=\s*"([^"]+)"', text)
     return found.group(1) if found else '0'
 
@@ -163,15 +163,15 @@ def compile_stub(mingw, build, version, exe_name):
     gcc = tool(mingw, 'gcc.exe')
     windres = tool(mingw, 'windres.exe')
 
-    (build / 'wfactory.manifest').write_text(MANIFEST, encoding='utf8')
+    (build / 'oldways.manifest').write_text(MANIFEST, encoding='utf8')
     ver_comma = ','.join((version.replace('-', '.').split('.') + ['0', '0', '0'])[:4])
-    (build / 'wfactory.rc').write_text(RC_TEMPLATE.format(
-        icon=(HERE / 'stub/wfactory.ico').as_posix(),
-        manifest=(build / 'wfactory.manifest').as_posix(),
+    (build / 'oldways.rc').write_text(RC_TEMPLATE.format(
+        icon=(HERE / 'stub/oldways.ico').as_posix(),
+        manifest=(build / 'oldways.manifest').as_posix(),
         ver_comma=ver_comma, ver=version, exe=exe_name), encoding='utf8')
 
-    subprocess.run([str(windres), str(build / 'wfactory.rc'),
-                    '-O', 'coff', '-o', str(build / 'wfactory.res')], check=True)
+    subprocess.run([str(windres), str(build / 'oldways.rc'),
+                    '-O', 'coff', '-o', str(build / 'oldways.res')], check=True)
 
     stub = build / 'stub.exe'
     subprocess.run([
@@ -181,15 +181,15 @@ def compile_stub(mingw, build, version, exe_name):
         '-finput-charset=UTF-8', '-fexec-charset=UTF-8',
         '-fwide-exec-charset=UTF-16LE',
         '-I', str(HERE / 'stub'),
-        str(HERE / 'stub/wfactory.c'), str(HERE / 'stub/LzmaDec.c'),
-        str(build / 'wfactory.res'), '-o', str(stub),
+        str(HERE / 'stub/oldways.c'), str(HERE / 'stub/LzmaDec.c'),
+        str(build / 'oldways.res'), '-o', str(stub),
         '-lgdi32', '-luser32', '-lkernel32',
     ], check=True)
     return stub
 
 
 def main():
-    ap = argparse.ArgumentParser(description='Сборка W-Factory.exe с рантаймом внутри.')
+    ap = argparse.ArgumentParser(description='Сборка Old Ways.exe с рантаймом внутри.')
     ap.add_argument('--jdk', default=str(ROOT / 'jdk8'))
     ap.add_argument('--jre', default=str(ROOT / 'jre8'), help='рантайм, который вложить')
     ap.add_argument('--mingw', default=str(ROOT / 'mingw64'))
@@ -209,7 +209,7 @@ def main():
     print('== лаунчер ==')
     if subprocess.run([sys.executable, str(HERE / 'build.py'), '--jdk', args.jdk]).returncode:
         return 1
-    jar = build / 'wfactory-launcher.jar'
+    jar = build / 'oldways-launcher.jar'
     if not jar.is_file():
         raise SystemExit(f'нет собранного лаунчера: {jar}')
 
@@ -219,7 +219,7 @@ def main():
         shutil.rmtree(staging)
     staging.mkdir(parents=True)
     runtime, dropped = stage_runtime(jre, staging)
-    shutil.copy2(jar, staging / 'wfactory-launcher.jar')
+    shutil.copy2(jar, staging / 'oldways-launcher.jar')
     total = sum(f.stat().st_size for f in staging.rglob('*') if f.is_file())
     print(f'   вложено {total / 2 ** 20:.1f} МБ, выброшено лишнего '
           f'{dropped / 2 ** 20:.1f} МБ')

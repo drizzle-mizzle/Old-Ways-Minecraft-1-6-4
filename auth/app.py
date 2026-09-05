@@ -1,5 +1,5 @@
 """
-Сервис авторизации и скинов W-Factory для Minecraft 1.6.4.
+Сервис авторизации и скинов Old Ways для Minecraft 1.6.4.
 
 Реализует легаси-протокол, который в 1.6.4 зашит в клиент и сервер обычными
 строками (см. tools/patch_jars.py). Проверено по байткоду:
@@ -37,17 +37,17 @@ from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
-DB_PATH = Path(os.environ.get('WF_DB', '/data/auth.sqlite3'))
-SKIN_DIR = Path(os.environ.get('WF_SKINS', '/data/skins'))
-SESSION_TTL = int(os.environ.get('WF_SESSION_TTL', 60 * 60 * 24 * 7))  # неделя
-JOIN_TTL = int(os.environ.get('WF_JOIN_TTL', 60))                      # окно на рукопожатие
+DB_PATH = Path(os.environ.get('OW_DB', '/data/auth.sqlite3'))
+SKIN_DIR = Path(os.environ.get('OW_SKINS', '/data/skins'))
+SESSION_TTL = int(os.environ.get('OW_SESSION_TTL', 60 * 60 * 24 * 7))  # неделя
+JOIN_TTL = int(os.environ.get('OW_JOIN_TTL', 60))                      # окно на рукопожатие
 MAX_SKIN_BYTES = 64 * 1024
-DIST_DIR = Path(os.environ.get('WF_DIST', '/data/dist'))
+DIST_DIR = Path(os.environ.get('OW_DIST', '/data/dist'))
 
-SEED_USER = os.environ.get('WF_ADMIN_USER', 'flower')
-SEED_PASSWORD = os.environ.get('WF_ADMIN_PASSWORD', 'flower')
+SEED_USER = os.environ.get('OW_ADMIN_USER', 'flower')
+SEED_PASSWORD = os.environ.get('OW_ADMIN_PASSWORD', 'flower')
 
-app = FastAPI(title='W-Factory Auth', version='0.1.0')
+app = FastAPI(title='Old Ways Auth', version='0.1.0')
 
 
 # --------------------------------------------------------------------------- БД
@@ -115,7 +115,7 @@ def seed_admin(conn: sqlite3.Connection) -> None:
     print(f'[auth] создан админский аккаунт {SEED_USER!r}')
     if default:
         print(f'[auth] ВНИМАНИЕ: пароль совпадает с ником. Смените его до того, '
-              f'как сервис станет доступен извне, или задайте WF_ADMIN_PASSWORD.')
+              f'как сервис станет доступен извне, или задайте OW_ADMIN_PASSWORD.')
 
 
 # ----------------------------------------------------------------- вспомогательное

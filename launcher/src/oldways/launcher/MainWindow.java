@@ -1,15 +1,15 @@
-package wfactory.launcher;
+package oldways.launcher;
 
-import wfactory.launcher.ui.Background;
-import wfactory.launcher.ui.Buttons;
-import wfactory.launcher.ui.Check;
-import wfactory.launcher.ui.Fields;
-import wfactory.launcher.ui.GearButton;
-import wfactory.launcher.ui.Glass;
-import wfactory.launcher.ui.MemorySlider;
-import wfactory.launcher.ui.ProgressBar;
-import wfactory.launcher.ui.Segmented;
-import wfactory.launcher.ui.Theme;
+import oldways.launcher.ui.Background;
+import oldways.launcher.ui.Buttons;
+import oldways.launcher.ui.Check;
+import oldways.launcher.ui.Fields;
+import oldways.launcher.ui.GearButton;
+import oldways.launcher.ui.Glass;
+import oldways.launcher.ui.MemorySlider;
+import oldways.launcher.ui.ProgressBar;
+import oldways.launcher.ui.Segmented;
+import oldways.launcher.ui.Theme;
 
 import javax.swing.JComponent;
 import javax.swing.JDialog;
@@ -57,7 +57,7 @@ final class MainWindow {
 
     private final Config cfg;
     private final double k;
-    private final JFrame frame = new JFrame("W-Factory");
+    private final JFrame frame = new JFrame("Old Ways");
     private final Background root;
     private final Glass loginBox = new Glass(true);
     private final Glass settingsBox = new Glass(false);

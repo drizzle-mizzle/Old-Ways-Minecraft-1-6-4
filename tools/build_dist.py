@@ -149,7 +149,7 @@ def main():
     ap.add_argument('--out', default='dist', help='куда сложить раздачу')
     ap.add_argument('--version', default='client/1.6.4.json')
     ap.add_argument('--assets', default='client/assets-legacy.json')
-    ap.add_argument('--name', default='W-Factory', help='имя сборки в манифесте')
+    ap.add_argument('--name', default='Old Ways', help='имя сборки в манифесте')
     ap.add_argument('--check', action='store_true',
                     help='не собирать, а сверить готовую раздачу с её манифестом')
     args = ap.parse_args()

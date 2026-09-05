@@ -1,4 +1,4 @@
-package wfactory.launcher;
+package oldways.launcher;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -43,7 +43,7 @@ final class Manifest {
             throw new IllegalArgumentException(
                     "манифест версии " + format + ", а лаунчер понимает 1 — обновите лаунчер");
         }
-        name = Json.str(root, "name", "W-Factory");
+        name = Json.str(root, "name", "Old Ways");
         id = Json.str(root, "id");
         built = Json.str(root, "built", "");
         mainClass = Json.str(root, "mainClass");

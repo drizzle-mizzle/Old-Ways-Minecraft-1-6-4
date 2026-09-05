@@ -1,4 +1,4 @@
-package wfactory.launcher;
+package oldways.launcher;
 
 /**
  * Адрес сервера — единственное, что игрок вводит руками.
@@ -9,7 +9,7 @@ package wfactory.launcher;
  * может отличаться, игровой порт стандартный.
  *
  * Принимается что угодно похожее: "localhost", "localhost:8080",
- * "http://w-factory.ru", "w-factory.ru/" — лишнее отбрасывается.
+ * "http://old-ways.ru", "old-ways.ru/" — лишнее отбрасывается.
  */
 final class Address {
 

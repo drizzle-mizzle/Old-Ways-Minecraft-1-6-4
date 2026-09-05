@@ -59,8 +59,8 @@ services:
     environment:
       # Основной админский аккаунт. Пароль по умолчанию совпадает с ником —
       # задайте здесь свой до того, как сервис станет доступен извне.
-      WF_ADMIN_USER: "flower"
-      # WF_ADMIN_PASSWORD: "..."
+      OW_ADMIN_USER: "flower"
+      # OW_ADMIN_PASSWORD: "..."
       TZ: "Europe/Moscow"
 
     logging:

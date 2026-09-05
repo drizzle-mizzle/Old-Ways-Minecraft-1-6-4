@@ -1,4 +1,4 @@
-package wfactory.launcher;
+package oldways.launcher;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;

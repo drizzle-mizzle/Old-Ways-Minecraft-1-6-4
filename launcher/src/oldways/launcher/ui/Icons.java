@@ -1,4 +1,4 @@
-package wfactory.launcher.ui;
+package oldways.launcher.ui;
 
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;

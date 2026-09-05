@@ -1,4 +1,4 @@
-# W-Factory
+# Old Ways
 
 Minecraft-сервер 1.6.4 на Spigot. Упор на градостроение и RPG-прокачку:
 игроки основывают города и развивают их, растут в классах и навыках.
@@ -75,7 +75,7 @@ docker compose up -d auth                 # сервис отдаёт её на 
 
 Сервис авторизации поднимается вместе с сервером, порт 8080. Основной аккаунт
 `flower` создаётся при первом старте; **пароль по умолчанию совпадает с ником**
-— задайте свой в `WF_ADMIN_PASSWORD` до выхода наружу.
+— задайте свой в `OW_ADMIN_PASSWORD` до выхода наружу.
 
 ## Попробовать целиком на одной машине
 
@@ -106,7 +106,7 @@ docker restart mc164
 
 ```
 python launcher/build.py
-jre8\bin\javaw.exe -jar launcher\build\wfactory-launcher.jar
+jre8\bin\javaw.exe -jar launcher\build\oldways-launcher.jar
 ```
 
 Для раздачи игрокам — один exe, внутри которого лежит и Java:
@@ -120,7 +120,7 @@ docker compose up -d --force-recreate minecraft
 
 ## Раздача игрокам
 
-`python launcher/package.py` собирает **W-Factory.exe** (23 МБ) — один файл,
+`python launcher/package.py` собирает **Old Ways.exe** (23 МБ) — один файл,
 внутри которого лежит Java 8 и сам лаунчер. Устанавливать нечего: при первом
 запуске exe распаковывает рантайм и стартует, дальше запуск занимает доли
 секунды.
@@ -129,8 +129,8 @@ docker compose up -d --force-recreate minecraft
 держать хоть в «Загрузках». Всё нажитое живёт в папке приложения:
 
 ```
-%LOCALAPPDATA%\W-Factory\runtime\    Java 8
-%LOCALAPPDATA%\W-Factory\game\       клиент, ресурсы, настройки, миры
+%LOCALAPPDATA%\Old Ways\runtime\    Java 8
+%LOCALAPPDATA%\Old Ways\game\       клиент, ресурсы, настройки, миры
 ```
 
 Дорогу туда показывает кнопка «Папка игры» в окне лаунчера. Удалить сборку —

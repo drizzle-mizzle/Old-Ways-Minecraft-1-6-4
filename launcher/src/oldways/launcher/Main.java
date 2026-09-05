@@ -1,4 +1,4 @@
-package wfactory.launcher;
+package oldways.launcher;
 
 import java.io.File;
 import java.util.HashMap;
@@ -21,7 +21,7 @@ public final class Main {
                 ? new File(options.get("home")) : Config.defaultRoot();
         Config cfg = new Config(root);
         Log.toFile(cfg.logFile());
-        Log.info("W-Factory лаунчер %s, каталог %s", VERSION, root);
+        Log.info("Old Ways лаунчер %s, каталог %s", VERSION, root);
         Log.info("система %s, java %s", Util.OS, System.getProperty("java.version"));
 
         if (options.containsKey("cli")) {
