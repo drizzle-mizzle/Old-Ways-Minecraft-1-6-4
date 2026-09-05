@@ -133,6 +133,10 @@ final class MainWindow {
         playButton.setFont(Theme.font((float) (20 * k), true));
         accountLink = new Link("Аккаунт", java.awt.Color.WHITE, k);
         logoutLink = new Link("Выход", Theme.DANGER, k);
+        // В полтора раза крупнее собственного размера ссылки: под широкой
+        // кнопкой мелкий текст терялся.
+        accountLink.setFont(Theme.font((float) (19.5 * k), false));
+        logoutLink.setFont(Theme.font((float) (19.5 * k), false));
         greeting = new Greeting(k);
         progress = new ProgressBar(k);
         status = label(" ", 12);
@@ -429,16 +433,18 @@ final class MainWindow {
 
         // Вошедшему на том же месте — кто он и одна широкая кнопка, а под ней
         // две ссылки помельче: главное действие в окне должно быть ровно одно.
+        // Пара «кто ты — Играть» стоит выше формы входа: так она читается
+        // вместе, а ссылки под кнопкой не упираются в нижний край стекла.
         int playWidth = (int) (formWidth * 0.72);
         int playHeight = root.s(50);
-        int playTop = y - root.s(8);
+        int playTop = y - root.s(50);
         playButton.setBounds((boxWidth - playWidth) / 2, playTop, playWidth, playHeight);
 
-        int linkHeight = root.s(22);
+        int linkHeight = root.s(33);
         int linkTop = playTop + playHeight + root.s(10);
-        int linkGap = root.s(28);
-        int accountWidth = accountLink.textWidth() + root.s(14);
-        int logoutWidth = logoutLink.textWidth() + root.s(14);
+        int linkGap = root.s(34);
+        int accountWidth = accountLink.textWidth() + root.s(18);
+        int logoutWidth = logoutLink.textWidth() + root.s(18);
         int linksLeft = (boxWidth - accountWidth - logoutWidth - linkGap) / 2;
         accountLink.setBounds(linksLeft, linkTop, accountWidth, linkHeight);
         logoutLink.setBounds(linksLeft + accountWidth + linkGap, linkTop,
