@@ -246,7 +246,10 @@ final class MainWindow {
         frame.setResizable(false);
         frame.pack();
         frame.setLocationRelativeTo(null);
-        BufferedImage icon = Theme.logo(root.isDay());
+        // Значок берём квадратный: широкий логотип в панели задач ужимается
+        // в нечитаемую полоску
+        BufferedImage icon = Theme.image("icon.png");
+        if (icon == null) icon = Theme.logo(root.isDay());
         if (icon != null) frame.setIconImage(icon);
     }
 

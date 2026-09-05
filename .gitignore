@@ -17,6 +17,10 @@ dist/
 # Temurin 8u504 с adoptium.net, распаковать под этим именем
 jdk8/
 
+# MinGW-w64 для сборки exe-запускателя (693 МБ), только для сборки:
+# github.com/niXman/mingw-builds-binaries, вариант posix-seh-msvcrt
+mingw64/
+
 # Собранный лаунчер
 launcher/build/
 
