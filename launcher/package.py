@@ -207,7 +207,10 @@ def main():
     build.mkdir(parents=True, exist_ok=True)
 
     print('== лаунчер ==')
-    if subprocess.run([sys.executable, str(HERE / 'build.py'), '--jdk', args.jdk]).returncode:
+    # Всегда с нуля: в каталоге классов иначе оседают файлы от прежних сборок
+    # (переименованные пакеты, отладочные классы) и уезжают в раздачу.
+    if subprocess.run([sys.executable, str(HERE / 'build.py'),
+                       '--jdk', args.jdk, '--clean']).returncode:
         return 1
     jar = build / 'oldways-launcher.jar'
     if not jar.is_file():

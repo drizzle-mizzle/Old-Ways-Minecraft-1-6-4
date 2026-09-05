@@ -47,6 +47,9 @@ public final class Theme {
     public static final Color CHOICE_PICKED  = new Color(255, 255, 255, 71); // 0.28
     public static final Color CHOICE_BORDER  = new Color(255, 255, 255, 128);// 0.5
     public static final Color GEAR_FILL      = new Color(74, 74, 74);        // #4a4a4a
+    // выход из учётной записи: светло-красный, чтобы читался на тёмном стекле
+    public static final Color DANGER         = new Color(255, 138, 128);
+    public static final Color DANGER_BORDER  = new Color(255, 138, 128, 128);
     public static final Color SHADOW         = new Color(0, 0, 0, 89);       // 0.35
 
     private static Font regular;

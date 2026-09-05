@@ -17,6 +17,8 @@ public class Buttons extends JButton {
     private final double scale;
     private final float fontSize;
     private final boolean heavy;
+    private Color accentBorder;
+    private Color accentText;
 
     public Buttons(String text, double scale, float fontSize, boolean heavy) {
         super(text);
@@ -42,6 +44,14 @@ public class Buttons extends JButton {
         return new Buttons(text, scale, 12f, false);
     }
 
+    /** Красит рамку и надпись: так отмечен выход из учётной записи. */
+    public Buttons accent(Color border, Color text) {
+        this.accentBorder = border;
+        this.accentText = text;
+        repaint();
+        return this;
+    }
+
     @Override
     public Dimension getPreferredSize() {
         FontMetrics metrics = getFontMetrics(getFont());
@@ -62,11 +72,13 @@ public class Buttons extends JButton {
         g.setColor(!isEnabled() ? Theme.CHOICE_FILL
                 : (hot ? Theme.BUTTON_HOVER : Theme.BUTTON_FILL));
         g.fill(shape);
-        g.setColor(isEnabled() ? Theme.BUTTON_BORDER : Theme.FIELD_BORDER);
+        Color border = accentBorder != null ? accentBorder : Theme.BUTTON_BORDER;
+        g.setColor(isEnabled() ? border : Theme.FIELD_BORDER);
         g.draw(shape);
 
         g.setFont(getFont());
-        g.setColor(isEnabled() ? Color.WHITE : Theme.TEXT_DIM);
+        Color label = accentText != null ? accentText : Color.WHITE;
+        g.setColor(isEnabled() ? label : Theme.TEXT_DIM);
         FontMetrics metrics = g.getFontMetrics();
         int x = (getWidth() - metrics.stringWidth(getText())) / 2;
         int y = (getHeight() + metrics.getAscent() - metrics.getDescent()) / 2;

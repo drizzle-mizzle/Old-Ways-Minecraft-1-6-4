@@ -6,6 +6,7 @@ import oldways.launcher.ui.Check;
 import oldways.launcher.ui.Fields;
 import oldways.launcher.ui.GearButton;
 import oldways.launcher.ui.Glass;
+import oldways.launcher.ui.Greeting;
 import oldways.launcher.ui.MemorySlider;
 import oldways.launcher.ui.ProgressBar;
 import oldways.launcher.ui.Segmented;
@@ -70,7 +71,10 @@ final class MainWindow {
     private final JLabel passwordLabel;
     private final Fields.TextField userField;
     private final Fields.PasswordField passwordField;
+    private final Buttons loginButton;
     private final Buttons playButton;
+    private final Buttons logoutButton;
+    private final Greeting greeting;
     private final ProgressBar progress;
     private final JLabel status;
 
@@ -91,6 +95,8 @@ final class MainWindow {
 
     private volatile boolean busy;
     private volatile boolean cancelled;
+    /** Кто вошёл. null — окно показывает поля логина и пароля. */
+    private volatile Auth.Session session;
 
     private MainWindow(Config cfg) {
         this.cfg = cfg;
@@ -109,7 +115,11 @@ final class MainWindow {
         passwordLabel = label("Пароль:", 14);
         userField = Fields.text(k, null);
         passwordField = Fields.password(k, null);
-        playButton = Buttons.primary("Войти", k);
+        loginButton = Buttons.primary("Войти", k);
+        playButton = Buttons.primary("Играть", k);
+        logoutButton = Buttons.primary("Выйти", k)
+                .accent(Theme.DANGER_BORDER, Theme.DANGER);
+        greeting = new Greeting(k);
         progress = new ProgressBar(k);
         status = label(" ", 12);
 
@@ -188,7 +198,10 @@ final class MainWindow {
         loginBox.add(userField);
         loginBox.add(passwordLabel);
         loginBox.add(passwordField);
+        loginBox.add(loginButton);
         loginBox.add(playButton);
+        loginBox.add(logoutButton);
+        loginBox.add(greeting);
         loginBox.add(progress);
         loginBox.add(status);
         progress.setVisible(false);
@@ -218,9 +231,19 @@ final class MainWindow {
         userField.setText(cfg.get("username", ""));
         themeChoice.select(cfg.get("theme", "night"));
 
+        loginButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                onLogin();
+            }
+        });
         playButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 onPlay();
+            }
+        });
+        logoutButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                onLogout();
             }
         });
         skinButton.addActionListener(new ActionListener() {
@@ -281,7 +304,7 @@ final class MainWindow {
         frame.setContentPane(root);
         root.setPreferredSize(new Dimension(
                 (int) (Theme.DESIGN_W * k), (int) (Theme.DESIGN_H * k)));
-        frame.getRootPane().setDefaultButton(playButton);
+        showSession(null);
         frame.setResizable(false);
         frame.pack();
         frame.setLocationRelativeTo(null);
@@ -303,7 +326,8 @@ final class MainWindow {
         loginBox.setBounds((width - boxWidth) / 2, middle - boxHeight / 2, boxWidth, boxHeight);
 
         int menuWidth = root.s(563);                     // width: 44%
-        int menuHeight = root.s(339);
+        // без входа в меню на строку меньше: скин и пароль там ни к чему
+        int menuHeight = root.s(skinButton.isVisible() ? 339 : 289);
         settingsBox.setBounds((width - menuWidth) / 2, middle - menuHeight / 2,
                 menuWidth, menuHeight);
 
@@ -354,7 +378,22 @@ final class MainWindow {
         y += labelHeight + gap;
         passwordField.setBounds(inputX, y, inputWidth, inputHeight);
         y += inputHeight + buttonTop;
-        playButton.setBounds((boxWidth - buttonWidth) / 2, y, buttonWidth, buttonHeight);
+        loginButton.setBounds((boxWidth - buttonWidth) / 2, y, buttonWidth, buttonHeight);
+
+        // Вошедшему на том же месте — кто он и что дальше: «Играть» и «Выйти»
+        // встают в тот же ряд, где была кнопка входа, чтобы окно не прыгало.
+        int pairGap = root.s(16);
+        int pairWidth = buttonWidth * 2 + pairGap;
+        int pairLeft = (boxWidth - pairWidth) / 2;
+        playButton.setBounds(pairLeft, y, buttonWidth, buttonHeight);
+        logoutButton.setBounds(pairLeft + buttonWidth + pairGap, y, buttonWidth, buttonHeight);
+
+        // Строку ставим не строго посередине, а чуть ниже: сверху над стеклом
+        // нависает логотип, и по центру она смотрелась бы прижатой к нему.
+        int greetingHeight = root.s(26);
+        greeting.setBounds(inputX,
+                paddingTop + (int) ((y - paddingTop - greetingHeight) * 0.62),
+                inputWidth, greetingHeight);
 
         progress.setBounds(inputX, boxHeight - root.s(40), inputWidth, root.s(10));
         status.setBounds(inputX, boxHeight - root.s(28), inputWidth, root.s(20));
@@ -372,11 +411,12 @@ final class MainWindow {
         int choiceHeight = root.s(30);
         int buttonHeight = root.s(30);
 
+        boolean actions = skinButton.isVisible();
         int total = labelHeight + inner + sliderHeight
                 + gap + labelHeight + inner + inputHeight
                 + gap + rowHeight
                 + gap + labelHeight + inner + choiceHeight
-                + gap + buttonHeight;
+                + (actions ? gap + buttonHeight : 0);
         int y = (menuHeight - total) / 2;
 
         memoryLabel.setBounds(x, y, fieldWidth, labelHeight);
@@ -397,13 +437,22 @@ final class MainWindow {
         themeChoice.setBounds(x, y, fieldWidth, choiceHeight);
         y += choiceHeight + gap;
 
-        int half = (fieldWidth - root.s(6)) / 2;
-        skinButton.setBounds(x, y, half, buttonHeight);
-        changePasswordButton.setBounds(x + half + root.s(6), y, half, buttonHeight);
+        if (actions) {
+            int half = (fieldWidth - root.s(6)) / 2;
+            skinButton.setBounds(x, y, half, buttonHeight);
+            changePasswordButton.setBounds(x + half + root.s(6), y, half, buttonHeight);
+        }
     }
 
     private void saveSettings() {
-        cfg.set("address", addressField.getText().trim());
+        String previous = cfg.get("address", "localhost");
+        String now = addressField.getText().trim();
+        if (session != null && !previous.equals(now)) {
+            // сеанс выдан прежним сервером и на новом не действует
+            showSession(null);
+            status.setText("Адрес сервера изменён — войдите заново");
+        }
+        cfg.set("address", now);
         cfg.set("memory", String.valueOf(memory.value()));
         cfg.set("autoconnect", String.valueOf(autoConnect.isChecked()));
         cfg.set("theme", themeChoice.selected());
@@ -412,12 +461,9 @@ final class MainWindow {
 
     // -------------------------------------------------------------- действия
 
-    private void onPlay() {
-        if (busy) {                       // кнопка во время работы означает «отменить»
-            cancelled = true;
-            status.setText("Отменяю…");
-            return;
-        }
+    /** Вход: только проверка учётной записи, ничего не качаем. */
+    private void onLogin() {
+        if (busy) return;
         final String raw = addressField.getText().trim();
         final String user = userField.getText().trim();
         final String password = new String(passwordField.getPassword());
@@ -429,36 +475,100 @@ final class MainWindow {
         cfg.set("username", user);
         cfg.save();
 
+        run("Вхожу…", new Task() {
+            public void go() throws Exception {
+                final Auth.Session opened =
+                        Auth.login(Address.parse(raw).base(), user, password);
+                Log.info("вход выполнен: %s", opened.username);
+                SwingUtilities.invokeLater(new Runnable() {
+                    public void run() {
+                        passwordField.setText("");   // дальше он не нужен
+                        showSession(opened);
+                        status.setText(opened.mustChangePassword
+                                ? "Пароль совпадает с логином — смените его в настройках"
+                                : " ");
+                    }
+                });
+            }
+        });
+    }
+
+    private void onLogout() {
+        if (busy) return;
+        showSession(null);
+        passwordField.setText("");
+        status.setText(" ");
+    }
+
+    /**
+     * Переключает окно между «войдите» и «вы вошли как …».
+     *
+     * Скин и смена пароля показываются только вошедшему: раньше эти кнопки
+     * были доступны всегда и втихую делали свой собственный вход тем, что
+     * набрано в полях, — то есть либо повторяли работу, либо падали в ошибку.
+     */
+    private void showSession(Auth.Session value) {
+        session = value;
+        boolean in = value != null;
+        userLabel.setVisible(!in);
+        userField.setVisible(!in);
+        passwordLabel.setVisible(!in);
+        passwordField.setVisible(!in);
+        loginButton.setVisible(!in);
+        greeting.setVisible(in);
+        playButton.setVisible(in);
+        logoutButton.setVisible(in);
+        skinButton.setVisible(in);
+        changePasswordButton.setVisible(in);
+        if (in) greeting.set("Вы вошли как ", value.username);
+        frame.getRootPane().setDefaultButton(in ? playButton : loginButton);
+        root.revalidate();
+        root.repaint();
+    }
+
+    private void onPlay() {
+        if (busy) {                       // кнопка во время работы означает «отменить»
+            cancelled = true;
+            status.setText("Отменяю…");
+            return;
+        }
+        // Сначала настройки: смена адреса там закрывает сеанс, и играть
+        // по старому пропуску на новом сервере уже нельзя.
+        saveSettings();
+        final Auth.Session current = session;
+        if (current == null) return;
+        if (current.expiresAt * 1000L <= System.currentTimeMillis()) {
+            showSession(null);
+            status.setText("Сеанс истёк — войдите заново");
+            return;
+        }
+
         busy = true;
         cancelled = false;
         playButton.setText("Отмена");
+        logoutButton.setEnabled(false);
         skinButton.setEnabled(false);
         changePasswordButton.setEnabled(false);
         progress.setVisible(true);
         progress.setRunning(true);
-        status.setText("Соединяюсь с сервером…");
+        status.setText("Проверяю сборку…");
 
+        final String raw = addressField.getText().trim();
         new Thread(new Runnable() {
             public void run() {
-                play(raw, user, password);
+                play(raw, current);
             }
         }, "launch").start();
     }
 
-    private void play(String raw, String user, String password) {
+    private void play(String raw, Auth.Session current) {
         try {
             Address address = Address.parse(raw);
             String base = address.base();
-            Auth.Session session = Auth.login(base, user, password);
-            Log.info("вход выполнен: %s", session.username);
-            if (session.mustChangePassword) {
-                say("Пароль совпадает с логином — смените его в настройках");
-            }
-
             Manifest manifest = Manifest.fetch(base);
             File client = new Installer(cfg, manifest, base, watcher()).run();
 
-            List<String> command = GameRunner.command(cfg, manifest, client, session,
+            List<String> command = GameRunner.command(cfg, manifest, client, current,
                     autoConnect.isChecked() ? address : null);
             final Process game = GameRunner.start(cfg, command);
             SwingUtilities.invokeLater(new Runnable() {
@@ -490,8 +600,9 @@ final class MainWindow {
             SwingUtilities.invokeLater(new Runnable() {
                 public void run() {
                     busy = false;
-                    playButton.setText("Войти");
+                    playButton.setText("Играть");
                     playButton.setEnabled(true);
+                    logoutButton.setEnabled(true);
                     skinButton.setEnabled(true);
                     changePasswordButton.setEnabled(true);
                     progress.setRunning(false);
@@ -530,27 +641,25 @@ final class MainWindow {
     }
 
     private void onSkin() {
+        final Auth.Session current = session;
+        if (current == null) return;     // кнопка видна только вошедшему
         JFileChooser chooser = new JFileChooser();
         chooser.setDialogTitle("Скин: PNG 64×32 или 64×64");
         chooser.setFileFilter(new FileNameExtensionFilter("Картинка PNG", "png"));
         if (chooser.showOpenDialog(frame) != JFileChooser.APPROVE_OPTION) return;
         final File file = chooser.getSelectedFile();
-        final String password = new String(passwordField.getPassword());
-        if (password.isEmpty()) {
-            say("Для смены скина введите пароль на первом экране");
-            return;
-        }
         run("Отправляю скин…", new Task() {
             public void go() throws Exception {
                 String base = Address.parse(addressField.getText().trim()).base();
-                Auth.Session session = Auth.login(base, userField.getText().trim(), password);
-                Auth.uploadSkin(base, session.token, read(file));
+                Auth.uploadSkin(base, current.token, read(file));
                 say("Скин принят: " + file.getName());
             }
         });
     }
 
     private void onPassword() {
+        final Auth.Session current = session;
+        if (current == null) return;     // кнопка видна только вошедшему
         JPasswordField oldField = new JPasswordField(16);
         JPasswordField newField = new JPasswordField(16);
         JPasswordField repeatField = new JPasswordField(16);
@@ -579,9 +688,14 @@ final class MainWindow {
         run("Меняю пароль…", new Task() {
             public void go() throws Exception {
                 String base = Address.parse(addressField.getText().trim()).base();
-                Auth.Session session = Auth.login(base, userField.getText().trim(), oldPassword);
-                Auth.changePassword(base, session.token, oldPassword, newPassword);
-                say("Пароль изменён, войдите с новым");
+                Auth.changePassword(base, current.token, oldPassword, newPassword);
+                SwingUtilities.invokeLater(new Runnable() {
+                    public void run() {
+                        // сервис закрывает все сеансы разом, наш в том числе
+                        showSession(null);
+                        status.setText("Пароль изменён — войдите с новым");
+                    }
+                });
             }
         });
     }
