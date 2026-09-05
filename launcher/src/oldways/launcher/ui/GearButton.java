@@ -62,15 +62,20 @@ public class GearButton extends JComponent {
         return (int) Math.round(44 * scale);
     }
 
-    /** Ширина блока: подпись обычно шире самой кнопки. */
-    public int fullWidth() {
-        return Math.max(buttonSize(), getFontMetrics(getFont()).stringWidth(caption)
-                + (int) Math.round(8 * scale));
+    /** Запас по краям ровно на прирост под курсором: иначе он обрежется. */
+    private int pad() {
+        return (int) Math.ceil(buttonSize() * (Theme.HOVER - 1) / 2);
     }
 
-    /** Высота с подписью: квадрат, зазор 6 и строка. */
+    /** Ширина блока: подпись обычно шире самой кнопки. */
+    public int fullWidth() {
+        return Math.max(buttonSize() + pad() * 2,
+                getFontMetrics(getFont()).stringWidth(caption) + (int) Math.round(8 * scale));
+    }
+
+    /** Высота блока: квадрат с запасом, зазор 6 и строка подписи. */
     public int fullHeight() {
-        return buttonSize() + (int) Math.round(6 * scale)
+        return buttonSize() + pad() * 2 + (int) Math.round(6 * scale)
                 + getFontMetrics(getFont()).getHeight();
     }
 
@@ -78,22 +83,30 @@ public class GearButton extends JComponent {
     protected void paintComponent(Graphics graphics) {
         Graphics2D g = Theme.smooth((Graphics2D) graphics.create());
         int size = buttonSize();
+        int pad = pad();
         int radius = (int) Math.round(7 * scale) * 2;
         int left = (getWidth() - size) / 2;
 
         Graphics2D box = (Graphics2D) g.create();
-        if (hot) {   // transform: scale(1.1) из макета
-            box.translate(left + size / 2.0, size / 2.0);
-            box.scale(1.1, 1.1);
+        if (hot) {
+            box.translate(left + size / 2.0, pad + size / 2.0);
+            box.scale(Theme.HOVER, Theme.HOVER);
             box.translate(-size / 2.0, -size / 2.0);
         } else {
-            box.translate(left, 0);
+            box.translate(left, pad);
         }
         Theme.shadow(box, 0, 0, size, size, radius, scale);
         RoundRectangle2D shape = new RoundRectangle2D.Float(
                 0.5f, 0.5f, size - 1f, size - 1f, radius, radius);
         box.setColor(Theme.GEAR_FILL);
         box.fill(shape);
+        if (hot) {
+            Graphics2D light = (Graphics2D) box.create();
+            light.clip(shape);
+            light.setPaint(Theme.sheen(size, size));
+            light.fill(shape);
+            light.dispose();
+        }
         box.setColor(Theme.INNER_LIGHT);
         box.drawLine(radius / 3, 1, size - radius / 3, 1);
         box.setColor(Theme.BORDER);
@@ -108,7 +121,7 @@ public class GearButton extends JComponent {
         g.setFont(getFont());
         g.setColor(Color.WHITE);
         FontMetrics metrics = g.getFontMetrics();
-        int textY = size + (int) Math.round(6 * scale) + metrics.getAscent();
+        int textY = size + pad * 2 + (int) Math.round(6 * scale) + metrics.getAscent();
         g.drawString(caption, (getWidth() - metrics.stringWidth(caption)) / 2, textY);
         g.dispose();
     }

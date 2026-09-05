@@ -75,6 +75,21 @@ final class Http {
         }
     }
 
+    /**
+     * Скачивает файл целиком и попутно отдаёт значение одного заголовка:
+     * по нему видно, свой у игрока скин или общий скин сервера.
+     */
+    static byte[] fetch(String url, String header, String[] value) throws IOException {
+        HttpURLConnection conn = open(url);
+        try {
+            byte[] data = finish(conn);
+            if (value != null && value.length > 0) value[0] = conn.getHeaderField(header);
+            return data;
+        } finally {
+            conn.disconnect();
+        }
+    }
+
     static String post(String url, byte[] body, String contentType, String session)
             throws IOException {
         HttpURLConnection conn = open(url);

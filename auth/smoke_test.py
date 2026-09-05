@@ -110,8 +110,11 @@ def main():
 
     print('\nскины')
     # заведомо отсутствующий ник, чтобы тест не зависел от прошлых прогонов
-    status, _ = call('GET', f'{base}/MinecraftSkins/nobody-has-this-skin.png', raw=True)
-    check('без скина отдаётся 404', status == 404, f'HTTP {status}')
+    status, body = call('GET', f'{base}/MinecraftSkins/nobody-has-this-skin.png', raw=True)
+    check('без своего скина отдаётся общий', status == 200 and body[:4] == bytes([137, 80, 78, 71]),
+          f'HTTP {status}')
+    status, _ = call('GET', f'{base}/MinecraftCloaks/nobody-has-this.png', raw=True)
+    check('без плаща отдаётся 404', status == 404, f'HTTP {status}')
 
     status, body = call('POST', f'{base}/api/skin', make_png(32, 32),
                         {'X-Session': session, 'Content-Type': 'image/png'})

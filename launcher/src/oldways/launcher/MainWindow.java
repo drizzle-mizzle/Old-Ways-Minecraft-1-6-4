@@ -7,9 +7,11 @@ import oldways.launcher.ui.Fields;
 import oldways.launcher.ui.GearButton;
 import oldways.launcher.ui.Glass;
 import oldways.launcher.ui.Greeting;
+import oldways.launcher.ui.Link;
 import oldways.launcher.ui.MemorySlider;
 import oldways.launcher.ui.ProgressBar;
 import oldways.launcher.ui.Segmented;
+import oldways.launcher.ui.SkinView;
 import oldways.launcher.ui.Theme;
 
 import javax.swing.JComponent;
@@ -22,6 +24,7 @@ import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.Color;
@@ -64,6 +67,7 @@ final class MainWindow {
     private final Background root;
     private final Glass loginBox = new Glass(true);
     private final Glass settingsBox = new Glass(false);
+    private final Glass accountBox = new Glass(false);
     private final LogoPanel logo = new LogoPanel();
     private final GearButton gear;
 
@@ -73,7 +77,8 @@ final class MainWindow {
     private final Fields.PasswordField passwordField;
     private final Buttons loginButton;
     private final Buttons playButton;
-    private final Buttons logoutButton;
+    private final Link accountLink;
+    private final Link logoutLink;
     private final Greeting greeting;
     private final ProgressBar progress;
     private final JLabel status;
@@ -85,8 +90,16 @@ final class MainWindow {
     private final Check autoConnect;
     private final JLabel themeLabel;
     private final Segmented themeChoice;
-    private final Buttons skinButton;
+    private final JLabel sizeLabel;
+    private final Fields.TextField widthField;
+    private final Fields.TextField heightField;
+    private final JLabel sizeCross;
+    private final Check fullscreen;
+
+    private final SkinView skinView;
+    private final Buttons changeSkinButton;
     private final Buttons changePasswordButton;
+    private final JLabel skinCaption;
     private final Buttons logButton;
     private final Buttons folderButton;
 
@@ -117,8 +130,9 @@ final class MainWindow {
         passwordField = Fields.password(k, null);
         loginButton = Buttons.primary("Войти", k);
         playButton = Buttons.primary("Играть", k);
-        logoutButton = Buttons.primary("Выйти", k)
-                .accent(Theme.DANGER_BORDER, Theme.DANGER);
+        playButton.setFont(Theme.font((float) (20 * k), true));
+        accountLink = new Link("Аккаунт", java.awt.Color.WHITE, k);
+        logoutLink = new Link("Выход", Theme.DANGER, k);
         greeting = new Greeting(k);
         progress = new ProgressBar(k);
         status = label(" ", 12);
@@ -131,8 +145,19 @@ final class MainWindow {
                 !"false".equals(cfg.get("autoconnect", "true")), k);
         themeLabel = label("Тема оформления", 14);
         themeChoice = new Segmented(THEME_LABELS, THEME_VALUES, k);
-        skinButton = Buttons.small("Загрузить скин…", k);
-        changePasswordButton = Buttons.small("Сменить пароль…", k);
+        sizeLabel = label("Размер окна игры", 14);
+        widthField = Fields.text(k, "1280");
+        heightField = Fields.text(k, "720");
+        sizeCross = label("×", 14);
+        sizeCross.setHorizontalAlignment(SwingConstants.CENTER);
+        fullscreen = new Check("Полный экран",
+                "true".equals(cfg.get("game.fullscreen", "false")), k);
+
+        skinView = new SkinView(k);
+        changeSkinButton = Buttons.small("Изменить скин…", k);
+        changePasswordButton = Buttons.small("Изменить пароль…", k);
+        skinCaption = label(" ", 11);
+        skinCaption.setForeground(Theme.TEXT_DIM);
         logButton = Buttons.small("Журнал", k);
         folderButton = Buttons.small("Папка игры", k);
         gear = new GearButton("Настройки", k);
@@ -200,11 +225,13 @@ final class MainWindow {
         loginBox.add(passwordField);
         loginBox.add(loginButton);
         loginBox.add(playButton);
-        loginBox.add(logoutButton);
+        loginBox.add(accountLink);
+        loginBox.add(logoutLink);
         loginBox.add(greeting);
         loginBox.add(progress);
         loginBox.add(status);
         progress.setVisible(false);
+        status.setHorizontalAlignment(SwingConstants.CENTER);
 
         settingsBox.add(memoryLabel);
         settingsBox.add(memory);
@@ -213,9 +240,18 @@ final class MainWindow {
         settingsBox.add(autoConnect);
         settingsBox.add(themeLabel);
         settingsBox.add(themeChoice);
-        settingsBox.add(skinButton);
-        settingsBox.add(changePasswordButton);
+        settingsBox.add(sizeLabel);
+        settingsBox.add(widthField);
+        settingsBox.add(sizeCross);
+        settingsBox.add(heightField);
+        settingsBox.add(fullscreen);
         settingsBox.setVisible(false);
+
+        accountBox.add(skinView);
+        accountBox.add(changeSkinButton);
+        accountBox.add(skinCaption);
+        accountBox.add(changePasswordButton);
+        accountBox.setVisible(false);
 
         // Swing рисует детей от последнего к первому, поэтому добавляем сверху
         // вниз — как складываются слои в макете: кнопки, меню, логотип, окно
@@ -224,12 +260,16 @@ final class MainWindow {
         root.add(logButton);
         root.add(folderButton);
         root.add(settingsBox);
+        root.add(accountBox);
         root.add(logo);
         root.add(loginBox);
 
         addressField.setText(cfg.get("address", "localhost"));
         userField.setText(cfg.get("username", ""));
         themeChoice.select(cfg.get("theme", "night"));
+        widthField.setText(cfg.get("game.width", ""));
+        heightField.setText(cfg.get("game.height", ""));
+        tintPlay();
 
         loginButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -241,12 +281,17 @@ final class MainWindow {
                 onPlay();
             }
         });
-        logoutButton.addActionListener(new ActionListener() {
+        logoutLink.onClick(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 onLogout();
             }
         });
-        skinButton.addActionListener(new ActionListener() {
+        accountLink.onClick(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                showPanel(accountBox.isVisible() ? "login" : "account");
+            }
+        });
+        changeSkinButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 onSkin();
             }
@@ -268,11 +313,7 @@ final class MainWindow {
         });
         gear.onClick(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                boolean showing = !settingsBox.isVisible();
-                settingsBox.setVisible(showing);
-                loginBox.setVisible(!showing);
-                if (!showing) saveSettings();
-                root.repaint();
+                showPanel(settingsBox.isVisible() ? "login" : "settings");
             }
         });
         memory.onChange(new ActionListener() {
@@ -286,6 +327,7 @@ final class MainWindow {
                 cfg.save();
                 root.setDay(Theme.isDay(themeChoice.selected()));
                 logo.repaint();
+                tintPlay();
             }
         });
 
@@ -326,8 +368,7 @@ final class MainWindow {
         loginBox.setBounds((width - boxWidth) / 2, middle - boxHeight / 2, boxWidth, boxHeight);
 
         int menuWidth = root.s(563);                     // width: 44%
-        // без входа в меню на строку меньше: скин и пароль там ни к чему
-        int menuHeight = root.s(skinButton.isVisible() ? 339 : 289);
+        int menuHeight = root.s(430);
         settingsBox.setBounds((width - menuWidth) / 2, middle - menuHeight / 2,
                 menuWidth, menuHeight);
 
@@ -347,8 +388,14 @@ final class MainWindow {
         folderButton.setBounds(width - root.s(24) - logSize.width - folderSize.width,
                 bottom, folderSize.width, folderSize.height);
 
+        int cardWidth = root.s(563);
+        int cardHeight = root.s(339);
+        accountBox.setBounds((width - cardWidth) / 2, middle - cardHeight / 2,
+                cardWidth, cardHeight);
+
         placeLogin(boxWidth, boxHeight);
         placeSettings(menuWidth, menuHeight);
+        placeAccount(cardWidth, cardHeight);
     }
 
     private void placeLogin(int boxWidth, int boxHeight) {
@@ -380,23 +427,34 @@ final class MainWindow {
         y += inputHeight + buttonTop;
         loginButton.setBounds((boxWidth - buttonWidth) / 2, y, buttonWidth, buttonHeight);
 
-        // Вошедшему на том же месте — кто он и что дальше: «Играть» и «Выйти»
-        // встают в тот же ряд, где была кнопка входа, чтобы окно не прыгало.
-        int pairGap = root.s(16);
-        int pairWidth = buttonWidth * 2 + pairGap;
-        int pairLeft = (boxWidth - pairWidth) / 2;
-        playButton.setBounds(pairLeft, y, buttonWidth, buttonHeight);
-        logoutButton.setBounds(pairLeft + buttonWidth + pairGap, y, buttonWidth, buttonHeight);
+        // Вошедшему на том же месте — кто он и одна широкая кнопка, а под ней
+        // две ссылки помельче: главное действие в окне должно быть ровно одно.
+        int playWidth = (int) (formWidth * 0.72);
+        int playHeight = root.s(50);
+        int playTop = y - root.s(8);
+        playButton.setBounds((boxWidth - playWidth) / 2, playTop, playWidth, playHeight);
+
+        int linkHeight = root.s(22);
+        int linkTop = playTop + playHeight + root.s(10);
+        int linkGap = root.s(28);
+        int accountWidth = accountLink.textWidth() + root.s(14);
+        int logoutWidth = logoutLink.textWidth() + root.s(14);
+        int linksLeft = (boxWidth - accountWidth - logoutWidth - linkGap) / 2;
+        accountLink.setBounds(linksLeft, linkTop, accountWidth, linkHeight);
+        logoutLink.setBounds(linksLeft + accountWidth + linkGap, linkTop,
+                logoutWidth, linkHeight);
 
         // Строку ставим не строго посередине, а чуть ниже: сверху над стеклом
         // нависает логотип, и по центру она смотрелась бы прижатой к нему.
-        int greetingHeight = root.s(26);
+        int greetingHeight = root.s(44);
         greeting.setBounds(inputX,
-                paddingTop + (int) ((y - paddingTop - greetingHeight) * 0.62),
+                paddingTop + (int) ((playTop - paddingTop - greetingHeight) * 0.55),
                 inputWidth, greetingHeight);
 
-        progress.setBounds(inputX, boxHeight - root.s(40), inputWidth, root.s(10));
-        status.setBounds(inputX, boxHeight - root.s(28), inputWidth, root.s(20));
+        // Сообщение снизу: по центру и на два процента высоты выше края.
+        int lift = (int) (boxHeight * 0.02);
+        progress.setBounds(inputX, boxHeight - root.s(40) - lift, inputWidth, root.s(10));
+        status.setBounds(inputX, boxHeight - root.s(28) - lift, inputWidth, root.s(20));
     }
 
     private void placeSettings(int menuWidth, int menuHeight) {
@@ -409,14 +467,13 @@ final class MainWindow {
         int inputHeight = root.s(39);
         int rowHeight = root.s(20);
         int choiceHeight = root.s(30);
-        int buttonHeight = root.s(30);
 
-        boolean actions = skinButton.isVisible();
         int total = labelHeight + inner + sliderHeight
                 + gap + labelHeight + inner + inputHeight
                 + gap + rowHeight
-                + gap + labelHeight + inner + choiceHeight
-                + (actions ? gap + buttonHeight : 0);
+                + gap + labelHeight + inner + inputHeight
+                + gap + rowHeight
+                + gap + labelHeight + inner + choiceHeight;
         int y = (menuHeight - total) / 2;
 
         memoryLabel.setBounds(x, y, fieldWidth, labelHeight);
@@ -432,16 +489,45 @@ final class MainWindow {
         autoConnect.setBounds(x, y, fieldWidth, rowHeight);
         y += rowHeight + gap;
 
+        sizeLabel.setBounds(x, y, fieldWidth, labelHeight);
+        y += labelHeight + inner;
+        int cross = root.s(30);
+        int half = (fieldWidth - cross) / 2;
+        widthField.setBounds(x, y, half, inputHeight);
+        sizeCross.setBounds(x + half, y, cross, inputHeight);
+        heightField.setBounds(x + half + cross, y, half, inputHeight);
+        y += inputHeight + gap;
+
+        fullscreen.setBounds(x, y, fieldWidth, rowHeight);
+        y += rowHeight + gap;
+
         themeLabel.setBounds(x, y, fieldWidth, labelHeight);
         y += labelHeight + inner;
         themeChoice.setBounds(x, y, fieldWidth, choiceHeight);
-        y += choiceHeight + gap;
+    }
 
-        if (actions) {
-            int half = (fieldWidth - root.s(6)) / 2;
-            skinButton.setBounds(x, y, half, buttonHeight);
-            changePasswordButton.setBounds(x + half + root.s(6), y, half, buttonHeight);
-        }
+    /**
+     * Карточка аккаунта: слева вращается игрок в своём скине, справа — что
+     * с этим скином и паролем можно сделать.
+     */
+    private void placeAccount(int boxWidth, int boxHeight) {
+        int pad = root.s(28);
+        int previewWidth = root.s(150);
+        int previewHeight = boxHeight - pad * 2;
+        skinView.setBounds(pad, pad, previewWidth, previewHeight);
+
+        int right = pad + previewWidth + root.s(30);
+        int rightWidth = boxWidth - right - pad;
+        int buttonHeight = root.s(40);
+        int captionHeight = root.s(18);
+        int stack = buttonHeight + root.s(10) + captionHeight + root.s(26) + buttonHeight;
+        int y = pad + (previewHeight - stack) / 2;
+
+        changeSkinButton.setBounds(right, y, rightWidth, buttonHeight);
+        y += buttonHeight + root.s(10);
+        skinCaption.setBounds(right, y, rightWidth, captionHeight);
+        y += captionHeight + root.s(26);
+        changePasswordButton.setBounds(right, y, rightWidth, buttonHeight);
     }
 
     private void saveSettings() {
@@ -450,13 +536,25 @@ final class MainWindow {
         if (session != null && !previous.equals(now)) {
             // сеанс выдан прежним сервером и на новом не действует
             showSession(null);
-            status.setText("Адрес сервера изменён — войдите заново");
+            oops("Адрес сервера изменён — войдите заново");
         }
         cfg.set("address", now);
         cfg.set("memory", String.valueOf(memory.value()));
         cfg.set("autoconnect", String.valueOf(autoConnect.isChecked()));
         cfg.set("theme", themeChoice.selected());
+        cfg.set("game.fullscreen", String.valueOf(fullscreen.isChecked()));
+        cfg.set("game.width", digits(widthField.getText()));
+        cfg.set("game.height", digits(heightField.getText()));
         cfg.save();
+    }
+
+    /** Оставляет от введённого только цифры: пустое значение вернёт размер по DPI. */
+    private static String digits(String text) {
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < text.length(); i++) {
+            if (Character.isDigit(text.charAt(i))) out.append(text.charAt(i));
+        }
+        return out.toString();
     }
 
     // -------------------------------------------------------------- действия
@@ -468,7 +566,7 @@ final class MainWindow {
         final String user = userField.getText().trim();
         final String password = new String(passwordField.getPassword());
         if (user.isEmpty() || password.isEmpty()) {
-            status.setText("Введите логин и пароль");
+            oops("Введите логин и пароль");
             return;
         }
         saveSettings();
@@ -484,13 +582,30 @@ final class MainWindow {
                     public void run() {
                         passwordField.setText("");   // дальше он не нужен
                         showSession(opened);
-                        status.setText(opened.mustChangePassword
-                                ? "Пароль совпадает с логином — смените его в настройках"
-                                : " ");
+                        status.setForeground(Theme.TEXT);
+                        status.setText(" ");
                     }
                 });
             }
         });
+    }
+
+    /** Какая из трёх карточек на экране: вход, настройки или аккаунт. */
+    private void showPanel(String which) {
+        boolean settings = "settings".equals(which);
+        boolean account = "account".equals(which);
+        if (settingsBox.isVisible() && !settings) saveSettings();
+        settingsBox.setVisible(settings);
+        accountBox.setVisible(account);
+        loginBox.setVisible(!settings && !account);
+        skinView.spin(account);
+        if (account) loadSkin();
+        root.repaint();
+    }
+
+    /** «Играть» подкрашивается под время суток: салатовый днём, голубой ночью. */
+    private void tintPlay() {
+        playButton.tint(root.isDay() ? Theme.PLAY_DAY : Theme.PLAY_NIGHT);
     }
 
     private void onLogout() {
@@ -517,9 +632,13 @@ final class MainWindow {
         loginButton.setVisible(!in);
         greeting.setVisible(in);
         playButton.setVisible(in);
-        logoutButton.setVisible(in);
-        skinButton.setVisible(in);
-        changePasswordButton.setVisible(in);
+        accountLink.setVisible(in);
+        logoutLink.setVisible(in);
+        if (!in && accountBox.isVisible()) {   // вышел — карточке аккаунта конец
+            accountBox.setVisible(false);
+            skinView.spin(false);
+            loginBox.setVisible(true);
+        }
         if (in) greeting.set("Вы вошли как ", value.username);
         frame.getRootPane().setDefaultButton(in ? playButton : loginButton);
         root.revalidate();
@@ -539,15 +658,16 @@ final class MainWindow {
         if (current == null) return;
         if (current.expiresAt * 1000L <= System.currentTimeMillis()) {
             showSession(null);
-            status.setText("Сеанс истёк — войдите заново");
+            oops("Сеанс истёк — войдите заново");
             return;
         }
 
         busy = true;
         cancelled = false;
         playButton.setText("Отмена");
-        logoutButton.setEnabled(false);
-        skinButton.setEnabled(false);
+        logoutLink.setVisible(false);
+        accountLink.setVisible(false);
+        changeSkinButton.setEnabled(false);
         changePasswordButton.setEnabled(false);
         progress.setVisible(true);
         progress.setRunning(true);
@@ -592,18 +712,19 @@ final class MainWindow {
                     showLog();
                 }
             });
-            say("Игра завершилась с ошибкой (код " + code + ") — подробности в журнале");
+            oops("Игра завершилась с ошибкой (код " + code + ") — подробности в журнале");
         } catch (Exception e) {
             Log.error("запуск не удался", e);
-            say(Log.describe(e));
+            oops(Log.describe(e));
         } finally {
             SwingUtilities.invokeLater(new Runnable() {
                 public void run() {
                     busy = false;
                     playButton.setText("Играть");
                     playButton.setEnabled(true);
-                    logoutButton.setEnabled(true);
-                    skinButton.setEnabled(true);
+                    logoutLink.setVisible(true);
+                    accountLink.setVisible(true);
+                    changeSkinButton.setEnabled(true);
                     changePasswordButton.setEnabled(true);
                     progress.setRunning(false);
                     progress.setVisible(false);
@@ -651,10 +772,76 @@ final class MainWindow {
         run("Отправляю скин…", new Task() {
             public void go() throws Exception {
                 String base = Address.parse(addressField.getText().trim()).base();
-                Auth.uploadSkin(base, current.token, read(file));
+                Auth.uploadSkin(base, current.token, skinBytes(file));
+                cfg.set("skin.file", file.getName());
+                cfg.save();
                 say("Скин принят: " + file.getName());
+                loadSkin();
             }
         });
+    }
+
+    /**
+     * Готовит скин к отправке.
+     *
+     * Игра 1.6.4 понимает только старую развёртку 64x32. Современные скины
+     * приходят 64x64, и верхняя их половина — ровно та же классическая
+     * раскладка, поэтому лишнее просто отрезаем: иначе игрок увидел бы
+     * в игре мешанину вместо своего персонажа.
+     */
+    private static byte[] skinBytes(File file) throws IOException {
+        BufferedImage image = javax.imageio.ImageIO.read(file);
+        if (image == null) throw new IOException("это не картинка PNG");
+        if (image.getWidth() != 64 || (image.getHeight() != 32 && image.getHeight() != 64)) {
+            throw new IOException("скин должен быть 64×32 или 64×64, а тут "
+                    + image.getWidth() + "×" + image.getHeight());
+        }
+        if (image.getHeight() == 32) return read(file);
+
+        BufferedImage classic = new BufferedImage(64, 32, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = classic.createGraphics();
+        g.drawImage(image, 0, 0, 64, 32, 0, 0, 64, 32, null);
+        g.dispose();
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(classic, "png", out);
+        return out.toByteArray();
+    }
+
+    /** Тянет скин для предпросмотра: свой или общий — видно по заголовку. */
+    private void loadSkin() {
+        final Auth.Session current = session;
+        if (current == null) return;
+        skinView.setSkin(SkinView.placeholder());
+        skinCaption.setText("загружаю…");
+        new Thread(new Runnable() {
+            public void run() {
+                String note;
+                BufferedImage image = null;
+                try {
+                    String base = Address.parse(addressField.getText().trim()).base();
+                    String[] kind = new String[1];
+                    byte[] png = Http.fetch(
+                            base + "/MinecraftSkins/" + current.username + ".png",
+                            "X-Skin", kind);
+                    image = javax.imageio.ImageIO.read(
+                            new java.io.ByteArrayInputStream(png));
+                    note = "default".equals(kind[0])
+                            ? "стандартный скин сервера"
+                            : cfg.get("skin.file", "свой скин");
+                } catch (Exception e) {
+                    Log.error("не удалось получить скин", e);
+                    note = "скин не получен";
+                }
+                final BufferedImage ready = image;
+                final String caption = note;
+                SwingUtilities.invokeLater(new Runnable() {
+                    public void run() {
+                        if (ready != null) skinView.setSkin(ready);
+                        skinCaption.setText(caption);
+                    }
+                });
+            }
+        }, "skin").start();
     }
 
     private void onPassword() {
@@ -682,7 +869,7 @@ final class MainWindow {
         final String oldPassword = new String(oldField.getPassword());
         final String newPassword = new String(newField.getPassword());
         if (!newPassword.equals(new String(repeatField.getPassword()))) {
-            say("Пароли не совпали");
+            oops("Пароли не совпали");
             return;
         }
         run("Меняю пароль…", new Task() {
@@ -760,7 +947,7 @@ final class MainWindow {
                     task.go();
                 } catch (Exception e) {
                     Log.error(label, e);
-                    say(Log.describe(e));
+                    oops(Log.describe(e));
                 } finally {
                     busy = false;
                 }
@@ -768,9 +955,19 @@ final class MainWindow {
         }, "task").start();
     }
 
-    private void say(final String text) {
+    private void say(String text) {
+        message(text, false);
+    }
+
+    /** То же, но красным: ошибку видно сразу, читать строку не нужно. */
+    private void oops(String text) {
+        message(text, true);
+    }
+
+    private void message(final String text, final boolean bad) {
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
+                status.setForeground(bad ? Theme.DANGER : Theme.TEXT);
                 status.setText(text);
             }
         });

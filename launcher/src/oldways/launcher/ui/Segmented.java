@@ -115,6 +115,14 @@ public class Segmented extends JComponent {
             g.setColor(on ? Theme.CHOICE_PICKED
                     : (i == hovered ? Theme.BUTTON_FILL : Theme.CHOICE_FILL));
             g.fill(shape);
+            if (i == hovered) {          // тот же блик, что и у кнопок
+                Graphics2D light = (Graphics2D) g.create();
+                light.clip(shape);
+                light.setPaint(Theme.sheen(cell, getHeight()));
+                light.translate(left, 0);
+                light.fill(shape);
+                light.dispose();
+            }
             g.setColor(on ? Theme.CHOICE_BORDER : Theme.FIELD_BORDER);
             g.draw(shape);
 

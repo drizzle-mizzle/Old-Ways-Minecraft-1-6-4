@@ -38,7 +38,7 @@ final class Auth {
             answer = Http.post(base + "/api/login", body.getBytes("UTF-8"),
                     "application/json", null);
         } catch (Http.HttpError e) {
-            if (e.code == 401) throw new IOException("неверный ник или пароль");
+            if (e.code == 401) throw new IOException("Неверный логин или пароль");
             if (e.code == 422) throw new IOException("ник до 16 знаков, пароль не пустой");
             throw new IOException("сервис авторизации ответил " + e.detail());
         }

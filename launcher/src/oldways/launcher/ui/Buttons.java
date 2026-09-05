@@ -19,6 +19,7 @@ public class Buttons extends JButton {
     private final boolean heavy;
     private Color accentBorder;
     private Color accentText;
+    private Color accentFill;
 
     public Buttons(String text, double scale, float fontSize, boolean heavy) {
         super(text);
@@ -52,6 +53,15 @@ public class Buttons extends JButton {
         return this;
     }
 
+    /** Красит кнопку целиком в один цвет: заливка, рамка и надпись. */
+    public Buttons tint(Color base) {
+        this.accentFill = new Color(base.getRed(), base.getGreen(), base.getBlue(), 56);
+        this.accentBorder = new Color(base.getRed(), base.getGreen(), base.getBlue(), 170);
+        this.accentText = base;
+        repaint();
+        return this;
+    }
+
     @Override
     public Dimension getPreferredSize() {
         FontMetrics metrics = getFontMetrics(getFont());
@@ -64,14 +74,35 @@ public class Buttons extends JButton {
     @Override
     protected void paintComponent(Graphics graphics) {
         Graphics2D g = Theme.smooth((Graphics2D) graphics.create());
+        boolean hot = isEnabled() && (getModel().isRollover() || getModel().isPressed());
+
+        // По краям оставлен запас ровно на прирост под курсором: без него
+        // подросшая кнопка обрезалась бы о собственные границы.
+        int insetX = (int) Math.ceil(getWidth() * (Theme.HOVER - 1) / 2);
+        int insetY = (int) Math.ceil(getHeight() * (Theme.HOVER - 1) / 2);
+        int width = getWidth() - insetX * 2;
+        int height = getHeight() - insetY * 2;
+        if (hot) {
+            g.translate(getWidth() / 2.0, getHeight() / 2.0);
+            g.scale(Theme.HOVER, Theme.HOVER);
+            g.translate(-getWidth() / 2.0, -getHeight() / 2.0);
+        }
+
         int radius = (int) Math.round(5 * scale) * 2;
         RoundRectangle2D shape = new RoundRectangle2D.Float(
-                0.5f, 0.5f, getWidth() - 1f, getHeight() - 1f, radius, radius);
+                insetX + 0.5f, insetY + 0.5f, width - 1f, height - 1f, radius, radius);
 
-        boolean hot = getModel().isRollover() || getModel().isPressed();
-        g.setColor(!isEnabled() ? Theme.CHOICE_FILL
-                : (hot ? Theme.BUTTON_HOVER : Theme.BUTTON_FILL));
+        Color fill = accentFill != null ? accentFill : Theme.BUTTON_FILL;
+        g.setColor(!isEnabled() ? Theme.CHOICE_FILL : fill);
         g.fill(shape);
+        if (hot) {
+            Graphics2D light = (Graphics2D) g.create();
+            light.clip(shape);
+            light.setPaint(Theme.sheen(getWidth(), getHeight()));
+            light.fill(shape);
+            light.dispose();
+        }
+
         Color border = accentBorder != null ? accentBorder : Theme.BUTTON_BORDER;
         g.setColor(isEnabled() ? border : Theme.FIELD_BORDER);
         g.draw(shape);
@@ -80,8 +111,8 @@ public class Buttons extends JButton {
         Color label = accentText != null ? accentText : Color.WHITE;
         g.setColor(isEnabled() ? label : Theme.TEXT_DIM);
         FontMetrics metrics = g.getFontMetrics();
-        int x = (getWidth() - metrics.stringWidth(getText())) / 2;
-        int y = (getHeight() + metrics.getAscent() - metrics.getDescent()) / 2;
+        int x = insetX + (width - metrics.stringWidth(getText())) / 2;
+        int y = insetY + (height + metrics.getAscent() - metrics.getDescent()) / 2;
         g.drawString(getText(), x, y);
         g.dispose();
     }

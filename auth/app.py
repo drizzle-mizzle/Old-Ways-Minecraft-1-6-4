@@ -43,6 +43,9 @@ SESSION_TTL = int(os.environ.get('OW_SESSION_TTL', 60 * 60 * 24 * 7))  # нед�
 JOIN_TTL = int(os.environ.get('OW_JOIN_TTL', 60))                      # окно на рукопожатие
 MAX_SKIN_BYTES = 64 * 1024
 DIST_DIR = Path(os.environ.get('OW_DIST', '/data/dist'))
+# Общий скин: его получают все, кто не загрузил свой. 64x32 — 1.6.4 понимает
+# только этот формат, шестьдесят четыре на шестьдесят четыре клиент обрежет.
+DEFAULT_SKIN = Path(os.environ.get('OW_DEFAULT_SKIN', '/opt/auth/default_skin.png'))
 
 SEED_USER = os.environ.get('OW_ADMIN_USER', 'flower')
 SEED_PASSWORD = os.environ.get('OW_ADMIN_PASSWORD', 'flower')
@@ -158,8 +161,8 @@ def api_login(body: LoginRequest):
     with db() as conn:
         user = find_user(conn, body.username)
         if not user or not bcrypt.checkpw(body.password.encode(), user['password_hash']):
-            # одинаковый ответ на неизвестный ник и неверный пароль
-            raise HTTPException(401, 'неверный ник или пароль')
+            # одинаковый ответ на неизвестный логин и неверный пароль
+            raise HTTPException(401, 'Неверный логин или пароль')
 
         token = secrets.token_urlsafe(32)
         expires = now() + SESSION_TTL
@@ -248,15 +251,27 @@ def checkserver(user: str = '', serverId: str = ''):
 def _serve_texture(directory: Path, name: str) -> Response:
     path = directory / f'{name.lower()}.png'
     if not path.is_file():
-        # клиент воспримет 404 как «скина нет» и возьмёт стандартный
+        # клиент воспримет 404 как «текстуры нет» и возьмёт стандартную
         raise HTTPException(404, 'нет текстуры')
     return Response(path.read_bytes(), media_type='image/png',
-                    headers={'Cache-Control': 'no-cache'})
+                    headers={'Cache-Control': 'no-cache', 'X-Skin': 'user'})
 
 
 @app.get('/MinecraftSkins/{name}.png')
 def skin(name: str):
-    return _serve_texture(SKIN_DIR, name)
+    """Скин игрока, а без него — общий скин сервера.
+
+    Отдавать 404 было бы честнее, но тогда клиент рисует ванильного Стива,
+    и стандартный вид сервера теряется. Заголовок X-Skin говорит лаунчеру,
+    свой это скин или общий: по нему подписывается предпросмотр.
+    """
+    path = SKIN_DIR / f'{name.lower()}.png'
+    if path.is_file():
+        return _serve_texture(SKIN_DIR, name)
+    if DEFAULT_SKIN.is_file():
+        return Response(DEFAULT_SKIN.read_bytes(), media_type='image/png',
+                        headers={'Cache-Control': 'no-cache', 'X-Skin': 'default'})
+    raise HTTPException(404, 'нет текстуры')
 
 
 @app.get('/MinecraftCloaks/{name}.png')

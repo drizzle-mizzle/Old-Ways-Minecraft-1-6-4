@@ -72,10 +72,14 @@ final class GameRunner {
                 work.width - 40);
         int height = Math.min(cfg.getInt("game.height", (int) Math.round(480 * dpi)),
                 work.height - 60);
-        command.add("--width");
-        command.add(String.valueOf(width));
-        command.add("--height");
-        command.add(String.valueOf(height));
+        if ("true".equals(cfg.get("game.fullscreen", "false"))) {
+            command.add("--fullscreen");
+        } else {
+            command.add("--width");
+            command.add(String.valueOf(width));
+            command.add("--height");
+            command.add(String.valueOf(height));
+        }
 
         if (address != null) {   // сразу подключиться к серверу, без списка миров
             command.add("--server");

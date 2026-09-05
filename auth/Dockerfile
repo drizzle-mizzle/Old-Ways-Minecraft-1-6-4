@@ -14,6 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
  && mkdir -p /data && chown auth:auth /data
 
 COPY --chown=auth:auth app.py .
+COPY --chown=auth:auth default_skin.png /opt/auth/default_skin.png
 
 USER auth
 VOLUME ["/data"]

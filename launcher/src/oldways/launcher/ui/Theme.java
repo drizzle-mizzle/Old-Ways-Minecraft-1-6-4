@@ -3,7 +3,9 @@ package oldways.launcher.ui;
 import javax.imageio.ImageIO;
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.GradientPaint;
 import java.awt.Graphics2D;
+import java.awt.Paint;
 import java.awt.RenderingHints;
 import java.awt.font.TextAttribute;
 import java.awt.image.BufferedImage;
@@ -47,9 +49,15 @@ public final class Theme {
     public static final Color CHOICE_PICKED  = new Color(255, 255, 255, 71); // 0.28
     public static final Color CHOICE_BORDER  = new Color(255, 255, 255, 128);// 0.5
     public static final Color GEAR_FILL      = new Color(74, 74, 74);        // #4a4a4a
-    // выход из учётной записи: светло-красный, чтобы читался на тёмном стекле
+    // выход из учётной записи и ошибки: светло-красный, читается на тёмном стекле
     public static final Color DANGER         = new Color(255, 138, 128);
     public static final Color DANGER_BORDER  = new Color(255, 138, 128, 128);
+    // «Играть» подкрашивается под время суток
+    public static final Color PLAY_DAY       = new Color(0xa6, 0xe2, 0x6b);  // салатовый
+    public static final Color PLAY_NIGHT     = new Color(0x8f, 0xc8, 0xff);  // светло-голубой
+
+    /** Насколько кнопка подрастает под курсором. */
+    public static final double HOVER = 1.0667;
     public static final Color SHADOW         = new Color(0, 0, 0, 89);       // 0.35
 
     private static Font regular;
@@ -214,6 +222,15 @@ public final class Theme {
     }
 
     // -------------------------------------------------------------- рисование
+
+    /**
+     * Блик под курсором: светлее сверху справа, к нижнему левому углу сходит
+     * на нет. Тот же угол, что и у градиента на стекле, — свет один и тот же.
+     */
+    public static Paint sheen(int width, int height) {
+        return new GradientPaint(width, 0, new Color(255, 255, 255, 54),
+                0, height, new Color(255, 255, 255, 0));
+    }
 
     public static Graphics2D smooth(Graphics2D g) {
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,

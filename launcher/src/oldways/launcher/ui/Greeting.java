@@ -33,8 +33,8 @@ public class Greeting extends JComponent {
     @Override
     protected void paintComponent(Graphics graphics) {
         Graphics2D g = Theme.smooth((Graphics2D) graphics.create());
-        java.awt.Font plain = Theme.font((float) (16 * scale), false);
-        java.awt.Font heavy = Theme.font((float) (16 * scale), true);
+        java.awt.Font plain = Theme.font((float) (32 * scale), false);
+        java.awt.Font heavy = Theme.font((float) (32 * scale), true);
 
         FontMetrics plainMetrics = g.getFontMetrics(plain);
         FontMetrics heavyMetrics = g.getFontMetrics(heavy);
