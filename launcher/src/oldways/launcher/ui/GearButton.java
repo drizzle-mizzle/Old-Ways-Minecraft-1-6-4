@@ -62,9 +62,13 @@ public class GearButton extends JComponent {
         return (int) Math.round(44 * scale);
     }
 
-    /** Запас по краям ровно на прирост под курсором: иначе он обрежется. */
+    /**
+     * Запас по краям: в него должны влезть и прирост под курсором, и тень.
+     * Не хватит — обрежется либо увеличенный квадрат, либо тень, и она
+     * превращается в тёмную полосу с ровным краем.
+     */
     private int pad() {
-        return (int) Math.ceil(buttonSize() * (Theme.HOVER - 1) / 2);
+        return (int) Math.ceil(Math.max(buttonSize() * (Theme.HOVER - 1) / 2, 9 * scale));
     }
 
     /** Ширина блока: подпись обычно шире самой кнопки. */
@@ -73,9 +77,9 @@ public class GearButton extends JComponent {
                 getFontMetrics(getFont()).stringWidth(caption) + (int) Math.round(8 * scale));
     }
 
-    /** Высота блока: квадрат с запасом, зазор 6 и строка подписи. */
+    /** Высота блока: квадрат с запасом, зазор и строка подписи. */
     public int fullHeight() {
-        return buttonSize() + pad() * 2 + (int) Math.round(6 * scale)
+        return pad() + buttonSize() + (int) Math.round(8 * scale)
                 + getFontMetrics(getFont()).getHeight();
     }
 
@@ -95,7 +99,9 @@ public class GearButton extends JComponent {
         } else {
             box.translate(left, pad);
         }
-        Theme.shadow(box, 0, 0, size, size, radius, scale);
+        // Тень мельче макетной: под кнопкой в сорок точек снос в двенадцать
+        // читается отдельной полосой снизу, а не тенью самой кнопки.
+        Theme.shadow(box, 0, 0, size, size, radius, scale, 3, 10);
         RoundRectangle2D shape = new RoundRectangle2D.Float(
                 0.5f, 0.5f, size - 1f, size - 1f, radius, radius);
         box.setColor(Theme.GEAR_FILL);
@@ -121,7 +127,7 @@ public class GearButton extends JComponent {
         g.setFont(getFont());
         g.setColor(Color.WHITE);
         FontMetrics metrics = g.getFontMetrics();
-        int textY = size + pad * 2 + (int) Math.round(6 * scale) + metrics.getAscent();
+        int textY = pad + size + (int) Math.round(8 * scale) + metrics.getAscent();
         g.drawString(caption, (getWidth() - metrics.stringWidth(caption)) / 2, textY);
         g.dispose();
     }

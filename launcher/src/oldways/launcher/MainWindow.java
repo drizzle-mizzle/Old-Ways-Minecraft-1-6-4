@@ -3,6 +3,7 @@ package oldways.launcher;
 import oldways.launcher.ui.Background;
 import oldways.launcher.ui.Buttons;
 import oldways.launcher.ui.Check;
+import oldways.launcher.ui.CloseButton;
 import oldways.launcher.ui.Fields;
 import oldways.launcher.ui.GearButton;
 import oldways.launcher.ui.Glass;
@@ -19,9 +20,6 @@ import javax.swing.JDialog;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingConstants;
@@ -34,9 +32,6 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GraphicsEnvironment;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
 import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
@@ -68,6 +63,7 @@ final class MainWindow {
     private final Glass loginBox = new Glass(true);
     private final Glass settingsBox = new Glass(false);
     private final Glass accountBox = new Glass(false);
+    private final Glass passwordBox = new Glass(false);
     private final LogoPanel logo = new LogoPanel();
     private final GearButton gear;
 
@@ -79,6 +75,7 @@ final class MainWindow {
     private final Buttons playButton;
     private final Link accountLink;
     private final Link logoutLink;
+    private final JLabel linkDivider;
     private final Greeting greeting;
     private final ProgressBar progress;
     private final JLabel status;
@@ -100,6 +97,18 @@ final class MainWindow {
     private final Buttons changeSkinButton;
     private final Buttons changePasswordButton;
     private final JLabel skinCaption;
+    private final CloseButton accountClose;
+
+    private final JLabel passwordTitle;
+    private final JLabel oldPasswordLabel;
+    private final JLabel newPasswordLabel;
+    private final JLabel repeatPasswordLabel;
+    private final Fields.PasswordField oldPasswordField;
+    private final Fields.PasswordField newPasswordField;
+    private final Fields.PasswordField repeatPasswordField;
+    private final Buttons savePasswordButton;
+    private final JLabel passwordStatus;
+    private final CloseButton passwordClose;
     private final Buttons logButton;
     private final Buttons folderButton;
 
@@ -132,11 +141,14 @@ final class MainWindow {
         playButton = Buttons.primary("Играть", k);
         playButton.setFont(Theme.font((float) (20 * k), true));
         accountLink = new Link("Аккаунт", java.awt.Color.WHITE, k);
-        logoutLink = new Link("Выход", Theme.DANGER, k);
+        logoutLink = new Link("Выйти", Theme.DANGER, k);
         // В полтора раза крупнее собственного размера ссылки: под широкой
         // кнопкой мелкий текст терялся.
         accountLink.setFont(Theme.font((float) (19.5 * k), false));
         logoutLink.setFont(Theme.font((float) (19.5 * k), false));
+        linkDivider = label("|", 19.5f);
+        linkDivider.setForeground(new Color(255, 255, 255, 90));
+        linkDivider.setHorizontalAlignment(SwingConstants.CENTER);
         greeting = new Greeting(k);
         progress = new ProgressBar(k);
         status = label(" ", 12);
@@ -162,6 +174,21 @@ final class MainWindow {
         changePasswordButton = Buttons.small("Изменить пароль…", k);
         skinCaption = label(" ", 11);
         skinCaption.setForeground(Theme.TEXT_DIM);
+        accountClose = new CloseButton(k);
+
+        passwordTitle = label("Смена пароля", 18);
+        passwordTitle.setForeground(Color.WHITE);
+        passwordTitle.setHorizontalAlignment(SwingConstants.CENTER);
+        oldPasswordLabel = label("Текущий пароль:", 14);
+        newPasswordLabel = label("Новый пароль:", 14);
+        repeatPasswordLabel = label("Ещё раз:", 14);
+        oldPasswordField = Fields.password(k, null);
+        newPasswordField = Fields.password(k, null);
+        repeatPasswordField = Fields.password(k, null);
+        savePasswordButton = Buttons.primary("Сменить пароль", k);
+        passwordStatus = label(" ", 12);
+        passwordStatus.setHorizontalAlignment(SwingConstants.CENTER);
+        passwordClose = new CloseButton(k);
         logButton = Buttons.small("Журнал", k);
         folderButton = Buttons.small("Папка игры", k);
         gear = new GearButton("Настройки", k);
@@ -230,6 +257,7 @@ final class MainWindow {
         loginBox.add(loginButton);
         loginBox.add(playButton);
         loginBox.add(accountLink);
+        loginBox.add(linkDivider);
         loginBox.add(logoutLink);
         loginBox.add(greeting);
         loginBox.add(progress);
@@ -251,11 +279,24 @@ final class MainWindow {
         settingsBox.add(fullscreen);
         settingsBox.setVisible(false);
 
+        accountBox.add(accountClose);
         accountBox.add(skinView);
         accountBox.add(changeSkinButton);
         accountBox.add(skinCaption);
         accountBox.add(changePasswordButton);
         accountBox.setVisible(false);
+
+        passwordBox.add(passwordClose);
+        passwordBox.add(passwordTitle);
+        passwordBox.add(oldPasswordLabel);
+        passwordBox.add(oldPasswordField);
+        passwordBox.add(newPasswordLabel);
+        passwordBox.add(newPasswordField);
+        passwordBox.add(repeatPasswordLabel);
+        passwordBox.add(repeatPasswordField);
+        passwordBox.add(savePasswordButton);
+        passwordBox.add(passwordStatus);
+        passwordBox.setVisible(false);
 
         // Swing рисует детей от последнего к первому, поэтому добавляем сверху
         // вниз — как складываются слои в макете: кнопки, меню, логотип, окно
@@ -265,6 +306,7 @@ final class MainWindow {
         root.add(folderButton);
         root.add(settingsBox);
         root.add(accountBox);
+        root.add(passwordBox);
         root.add(logo);
         root.add(loginBox);
 
@@ -303,6 +345,21 @@ final class MainWindow {
         changePasswordButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 onPassword();
+            }
+        });
+        savePasswordButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                submitPassword();
+            }
+        });
+        accountClose.onClick(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                showPanel("login");
+            }
+        });
+        passwordClose.onClick(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                showPanel("account");
             }
         });
         logButton.addActionListener(new ActionListener() {
@@ -397,9 +454,15 @@ final class MainWindow {
         accountBox.setBounds((width - cardWidth) / 2, middle - cardHeight / 2,
                 cardWidth, cardHeight);
 
+        int passWidth = root.s(440);
+        int passHeight = root.s(390);
+        passwordBox.setBounds((width - passWidth) / 2, middle - passHeight / 2,
+                passWidth, passHeight);
+
         placeLogin(boxWidth, boxHeight);
         placeSettings(menuWidth, menuHeight);
         placeAccount(cardWidth, cardHeight);
+        placePassword(passWidth, passHeight);
     }
 
     private void placeLogin(int boxWidth, int boxHeight) {
@@ -440,15 +503,22 @@ final class MainWindow {
         int playTop = y - root.s(50);
         playButton.setBounds((boxWidth - playWidth) / 2, playTop, playWidth, playHeight);
 
+        // Ссылки стоят ровно посередине между кнопкой и нижним краем стекла,
+        // разделённые тонкой чертой.
         int linkHeight = root.s(33);
-        int linkTop = playTop + playHeight + root.s(10);
-        int linkGap = root.s(34);
+        int linkTop = playTop + playHeight
+                + (boxHeight - playTop - playHeight - linkHeight) / 2;
+        int linkGap = root.s(14);
+        int dividerWidth = root.s(10);
         int accountWidth = accountLink.textWidth() + root.s(18);
         int logoutWidth = logoutLink.textWidth() + root.s(18);
-        int linksLeft = (boxWidth - accountWidth - logoutWidth - linkGap) / 2;
+        int linksLeft = (boxWidth - accountWidth - logoutWidth
+                - dividerWidth - linkGap * 2) / 2;
         accountLink.setBounds(linksLeft, linkTop, accountWidth, linkHeight);
-        logoutLink.setBounds(linksLeft + accountWidth + linkGap, linkTop,
-                logoutWidth, linkHeight);
+        linkDivider.setBounds(linksLeft + accountWidth + linkGap, linkTop,
+                dividerWidth, linkHeight);
+        logoutLink.setBounds(linksLeft + accountWidth + linkGap * 2 + dividerWidth,
+                linkTop, logoutWidth, linkHeight);
 
         // Строку ставим не строго посередине, а чуть ниже: сверху над стеклом
         // нависает логотип, и по центру она смотрелась бы прижатой к нему.
@@ -518,6 +588,8 @@ final class MainWindow {
      */
     private void placeAccount(int boxWidth, int boxHeight) {
         int pad = root.s(28);
+        int close = root.s(26);
+        accountClose.setBounds(boxWidth - root.s(14) - close, root.s(14), close, close);
         int previewWidth = root.s(150);
         int previewHeight = boxHeight - pad * 2;
         skinView.setBounds(pad, pad, previewWidth, previewHeight);
@@ -534,6 +606,47 @@ final class MainWindow {
         skinCaption.setBounds(right, y, rightWidth, captionHeight);
         y += captionHeight + root.s(26);
         changePasswordButton.setBounds(right, y, rightWidth, buttonHeight);
+    }
+
+    /** Карточка смены пароля: три поля в столбик, как в форме входа. */
+    private void placePassword(int boxWidth, int boxHeight) {
+        int close = root.s(26);
+        passwordClose.setBounds(boxWidth - root.s(14) - close, root.s(14), close, close);
+
+        int fieldWidth = (int) (boxWidth * 0.8);
+        int x = (boxWidth - fieldWidth) / 2;
+        int titleHeight = root.s(26);
+        int labelHeight = root.s(17);
+        int inner = root.s(6);
+        int gap = root.s(12);
+        int inputHeight = root.s(39);
+        int buttonHeight = root.s(42);
+        int statusHeight = root.s(20);
+
+        int row = labelHeight + inner + inputHeight;
+        int total = titleHeight + root.s(20) + row * 3 + gap * 2
+                + root.s(24) + buttonHeight + root.s(10) + statusHeight;
+        int y = (boxHeight - total) / 2;
+
+        passwordTitle.setBounds(x, y, fieldWidth, titleHeight);
+        y += titleHeight + root.s(20);
+
+        JLabel[] labels = { oldPasswordLabel, newPasswordLabel, repeatPasswordLabel };
+        Fields.PasswordField[] fields =
+                { oldPasswordField, newPasswordField, repeatPasswordField };
+        for (int i = 0; i < labels.length; i++) {
+            labels[i].setBounds(x, y, fieldWidth, labelHeight);
+            y += labelHeight + inner;
+            fields[i].setBounds(x, y, fieldWidth, inputHeight);
+            y += inputHeight + (i < labels.length - 1 ? gap : 0);
+        }
+
+        y += root.s(24);
+        int buttonWidth = (int) (fieldWidth * 0.66);
+        savePasswordButton.setBounds((boxWidth - buttonWidth) / 2, y,
+                buttonWidth, buttonHeight);
+        y += buttonHeight + root.s(10);
+        passwordStatus.setBounds(x, y, fieldWidth, statusHeight);
     }
 
     private void saveSettings() {
@@ -596,14 +709,16 @@ final class MainWindow {
         });
     }
 
-    /** Какая из трёх карточек на экране: вход, настройки или аккаунт. */
+    /** Какая карточка на экране: вход, настройки, аккаунт или смена пароля. */
     private void showPanel(String which) {
         boolean settings = "settings".equals(which);
         boolean account = "account".equals(which);
+        boolean password = "password".equals(which);
         if (settingsBox.isVisible() && !settings) saveSettings();
         settingsBox.setVisible(settings);
         accountBox.setVisible(account);
-        loginBox.setVisible(!settings && !account);
+        passwordBox.setVisible(password);
+        loginBox.setVisible(!settings && !account && !password);
         skinView.spin(account);
         if (account) loadSkin();
         root.repaint();
@@ -640,8 +755,11 @@ final class MainWindow {
         playButton.setVisible(in);
         accountLink.setVisible(in);
         logoutLink.setVisible(in);
-        if (!in && accountBox.isVisible()) {   // вышел — карточке аккаунта конец
+        linkDivider.setVisible(in);
+        if (!in && (accountBox.isVisible() || passwordBox.isVisible())) {
+            // вышел — карточкам аккаунта и пароля конец
             accountBox.setVisible(false);
+            passwordBox.setVisible(false);
             skinView.spin(false);
             loginBox.setVisible(true);
         }
@@ -850,47 +968,75 @@ final class MainWindow {
         }, "skin").start();
     }
 
+    /**
+     * Смена пароля — своя карточка, а не системный диалог.
+     *
+     * Диалог JOptionPane рисуется оформлением Windows: он не знает ни нашего
+     * масштаба, ни шрифтов, и на экране с высоким DPI выходил крошечной
+     * серой формой посреди окна.
+     */
     private void onPassword() {
-        final Auth.Session current = session;
-        if (current == null) return;     // кнопка видна только вошедшему
-        JPasswordField oldField = new JPasswordField(16);
-        JPasswordField newField = new JPasswordField(16);
-        JPasswordField repeatField = new JPasswordField(16);
-        JPanel panel = new JPanel(new GridBagLayout());
-        GridBagConstraints c = new GridBagConstraints();
-        c.insets = new Insets(3, 0, 3, 6);
-        c.anchor = GridBagConstraints.WEST;
-        String[] labels = { "Текущий пароль", "Новый пароль", "Ещё раз" };
-        JComponent[] fields = { oldField, newField, repeatField };
-        for (int i = 0; i < labels.length; i++) {
-            c.gridx = 0; c.gridy = i;
-            panel.add(new JLabel(labels[i]), c);
-            c.gridx = 1;
-            panel.add(fields[i], c);
-        }
-        int answer = JOptionPane.showConfirmDialog(frame, panel, "Смена пароля",
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-        if (answer != JOptionPane.OK_OPTION) return;
+        if (session == null) return;     // кнопка видна только вошедшему
+        oldPasswordField.setText("");
+        newPasswordField.setText("");
+        repeatPasswordField.setText("");
+        passwordStatus.setText(" ");
+        showPanel("password");
+        oldPasswordField.requestFocusInWindow();
+    }
 
-        final String oldPassword = new String(oldField.getPassword());
-        final String newPassword = new String(newField.getPassword());
-        if (!newPassword.equals(new String(repeatField.getPassword()))) {
-            oops("Пароли не совпали");
+    private void submitPassword() {
+        final Auth.Session current = session;
+        if (current == null || busy) return;
+
+        final String oldPassword = new String(oldPasswordField.getPassword());
+        final String newPassword = new String(newPasswordField.getPassword());
+        String repeat = new String(repeatPasswordField.getPassword());
+        if (oldPassword.isEmpty() || newPassword.isEmpty()) {
+            passwordNote("Заполните все поля", true);
             return;
         }
+        if (!newPassword.equals(repeat)) {
+            passwordNote("Пароли не совпали", true);
+            return;
+        }
+
+        passwordNote("Меняю пароль…", false);
         run("Меняю пароль…", new Task() {
             public void go() throws Exception {
                 String base = Address.parse(addressField.getText().trim()).base();
-                Auth.changePassword(base, current.token, oldPassword, newPassword);
+                try {
+                    Auth.changePassword(base, current.token, oldPassword, newPassword);
+                } catch (final Exception e) {
+                    SwingUtilities.invokeLater(new Runnable() {
+                        public void run() {
+                            passwordNote(Log.describe(e), true);
+                        }
+                    });
+                    throw e;
+                }
                 SwingUtilities.invokeLater(new Runnable() {
                     public void run() {
                         // сервис закрывает все сеансы разом, наш в том числе
+                        showPanel("login");
                         showSession(null);
+                        status.setForeground(Theme.TEXT);
                         status.setText("Пароль изменён — войдите с новым");
                     }
                 });
             }
         });
+    }
+
+    /** Сообщение внутри карточки пароля: ошибку красным, ход дела обычным. */
+    private void passwordNote(String text, boolean bad) {
+        passwordStatus.setForeground(bad ? Theme.DANGER : Theme.TEXT);
+        // сервис отвечает строчными («старый пароль не подходит»), а строка
+        // в карточке — самостоятельное предложение
+        if (text != null && !text.isEmpty()) {
+            text = Character.toUpperCase(text.charAt(0)) + text.substring(1);
+        }
+        passwordStatus.setText(text);
     }
 
     /** Игра лежит в профиле пользователя, поэтому путь туда нужен под рукой. */

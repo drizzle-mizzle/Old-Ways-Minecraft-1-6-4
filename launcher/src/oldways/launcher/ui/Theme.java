@@ -249,8 +249,19 @@ public final class Theme {
     /** Мягкая тень под панелью: box-shadow 0 12px 20px из макета. */
     public static void shadow(Graphics2D g, int x, int y, int width, int height,
                               int radius, double scale) {
-        int drop = (int) Math.round(12 * scale);
-        int spread = (int) Math.round(20 * scale);
+        shadow(g, x, y, width, height, radius, scale, 12, 20);
+    }
+
+    /**
+     * То же, но с собственным сносом и размытием.
+     *
+     * Тень макета рассчитана на панель в пол-окна: под кнопкой в сорок точек
+     * снос в двенадцать выглядит отдельной полосой снизу, а не тенью.
+     */
+    public static void shadow(Graphics2D g, int x, int y, int width, int height,
+                              int radius, double scale, double dropUnits, double spreadUnits) {
+        int drop = (int) Math.round(dropUnits * scale);
+        int spread = (int) Math.round(spreadUnits * scale);
         for (int i = spread; i > 0; i -= 2) {
             int alpha = (int) (SHADOW.getAlpha() * (1.0 - (double) i / spread) / 6);
             if (alpha <= 0) continue;
