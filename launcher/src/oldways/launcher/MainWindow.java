@@ -24,6 +24,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.Color;
 import java.awt.Desktop;
@@ -439,6 +440,7 @@ final class MainWindow {
                 (int) (Theme.DESIGN_W * k), (int) (Theme.DESIGN_H * k)));
         showSession(null);
         restoreSession();
+        watchSession();
         frame.setResizable(false);
         frame.pack();
         frame.setLocationRelativeTo(null);
@@ -807,7 +809,7 @@ final class MainWindow {
                         }
                     });
                 } catch (Auth.SessionGone e) {
-                    Log.info("пропуск истёк, нужен вход заново");
+                    Log.info("пропуск не подошёл: %s", e.getMessage());
                     forgetSession();
                     say(" ");
                 } catch (Exception e) {
@@ -817,6 +819,54 @@ final class MainWindow {
                 }
             }
         }, "session").start();
+    }
+
+    /**
+     * Присматривает за пропуском, пока окно открыто.
+     *
+     * На аккаунт живёт один пропуск: стоит войти с другого устройства, и наш
+     * перестаёт действовать. Узнать об этом молча, нажав «Играть» посреди
+     * вечера, — худшее из решений, поэтому лаунчер спрашивает сервис сам и
+     * возвращает окно к форме входа с объяснением.
+     *
+     * Раз в полминуты: чаще незачем, а реже — игрок успеет забыть, что делал
+     * на второй машине.
+     */
+    private void watchSession() {
+        Timer watch = new Timer(30000, new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                final Auth.Session current = session;
+                if (current == null || busy) return;   // нечего или некогда проверять
+                new Thread(new Runnable() {
+                    public void run() {
+                        try {
+                            Auth.check(Address.parse(addressField.getText().trim()).base(),
+                                    current.token);
+                        } catch (final Auth.SessionGone gone) {
+                            SwingUtilities.invokeLater(new Runnable() {
+                                public void run() {
+                                    if (session != current) return;   // уже сменился
+                                    Log.info("пропуск отозван: %s", gone.getMessage());
+                                    forgetSession();
+                                    showPanel("login");
+                                    showSession(null);
+                                    oops(capitalize(gone.getMessage()) + " — войдите заново");
+                                }
+                            });
+                        } catch (Exception ignored) {
+                            // сеть отвалилась — это не повод выкидывать игрока
+                        }
+                    }
+                }, "session-watch").start();
+            }
+        });
+        watch.start();
+    }
+
+    /** Сервис отвечает строчными, а у нас это отдельная строка сообщения. */
+    private static String capitalize(String text) {
+        if (text == null || text.isEmpty()) return "Пропуск больше не действует";
+        return Character.toUpperCase(text.charAt(0)) + text.substring(1);
     }
 
     /** Какая карточка на экране: вход, настройки, аккаунт или смена пароля. */

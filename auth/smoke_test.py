@@ -37,6 +37,16 @@ def check(name, condition, detail=''):
     print(f'  [{mark}] {name}' + (f'  — {detail}' if detail else ''))
 
 
+def headers_say_own(base, user):
+    """Свой ли скин у игрока: сервис помечает это заголовком X-Skin."""
+    request = urllib.request.Request(f'{base}/MinecraftSkins/{user}.png')
+    try:
+        with urllib.request.urlopen(request, timeout=10) as answer:
+            return answer.headers.get('X-Skin') == 'user'
+    except urllib.error.URLError:
+        return False
+
+
 def make_png(width, height):
     """Минимальный валидный PNG нужного размера, без сторонних библиотек."""
     def chunk(tag, payload):
@@ -124,6 +134,11 @@ def main():
                         {'X-Session': session, 'Content-Type': 'image/png'})
     check('не-PNG отклонён', status == 415, f'HTTP {status}')
 
+    # Скин аккаунта — не наша собственность: тест его подменяет, поэтому
+    # сначала забирает себе то, что было, а в конце кладёт обратно.
+    status, before = call('GET', f'{base}/MinecraftSkins/{args.user}.png', raw=True)
+    had_own = status == 200 and not isinstance(before, str) and headers_say_own(base, args.user)
+
     png = make_png(64, 32)
     status, body = call('POST', f'{base}/api/skin', png,
                         {'X-Session': session, 'Content-Type': 'image/png'})
@@ -139,6 +154,48 @@ def main():
     # значение заголовка должно быть latin-1, поэтому подделка тут латиницей
     status, _ = call('POST', f'{base}/api/skin', png, {'X-Session': 'forged-token'})
     check('загрузка без сессии отклонена', status == 401, f'HTTP {status}')
+
+    # --- один живой пропуск на аккаунт ---------------------------------------
+
+    status, body = call('GET', f'{base}/api/session', headers={'X-Session': session})
+    check('пропуск опознаётся', status == 200 and json.loads(body)['username'].lower()
+          == args.user.lower(), f'HTTP {status} {body}')
+
+    status, body = call('POST', f'{base}/api/login', creds,
+                        {'Content-Type': 'application/json'})
+    second = json.loads(body)['session']
+    check('второй вход выдаёт свой пропуск', second != session)
+
+    status, body = call('GET', f'{base}/api/session', headers={'X-Session': session})
+    check('первый пропуск отозван', status == 401, f'HTTP {status}')
+    check('причина отзыва названа', 'устройства' in body, body)
+
+    status, body = call('GET', f'{base}/game/joinserver.jsp'
+                        f'?user={args.user}&sessionId={session}&serverId=evicted')
+    check('отозванный пропуск не пускает на сервер', body.strip().lower() != 'ok', repr(body))
+
+    status, _ = call('GET', f'{base}/api/session', headers={'X-Session': second})
+    check('второй пропуск действует', status == 200, f'HTTP {status}')
+
+    status, _ = call('DELETE', f'{base}/api/session', headers={'X-Session': second})
+    check('выход принят', status == 200, f'HTTP {status}')
+
+    status, _ = call('GET', f'{base}/api/session', headers={'X-Session': second})
+    check('после выхода пропуск не действует', status == 401, f'HTTP {status}')
+
+    # --- вернуть аккаунт в исходное состояние --------------------------------
+
+    status, body = call('POST', f'{base}/api/login', creds,
+                        {'Content-Type': 'application/json'})
+    restore = json.loads(body)['session']
+    if had_own:
+        status, _ = call('POST', f'{base}/api/skin', before,
+                         {'X-Session': restore, 'Content-Type': 'image/png'})
+        check('прежний скин возвращён', status == 200, f'HTTP {status}')
+    else:
+        status, _ = call('DELETE', f'{base}/api/skin', headers={'X-Session': restore})
+        check('тестовый скин убран', status == 200, f'HTTP {status}')
+    call('DELETE', f'{base}/api/session', headers={'X-Session': restore})
 
     print(f'\nитог: пройдено {len(PASSED)}, провалено {len(FAILED)}')
     if FAILED:

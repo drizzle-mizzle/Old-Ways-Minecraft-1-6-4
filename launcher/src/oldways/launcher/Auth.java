@@ -63,7 +63,7 @@ final class Auth {
         try {
             answer = Http.get(base + "/api/session", token);
         } catch (Http.HttpError e) {
-            if (e.code == 401) throw new SessionGone();
+            if (e.code == 401) throw new SessionGone(e.detail());
             throw new IOException("сервис авторизации ответил " + e.detail());
         }
         Map<String, Object> data = Json.map(Json.parse(answer));
@@ -75,12 +75,19 @@ final class Auth {
                 Json.num(data, "expires_at"));
     }
 
-    /** Пропуск больше не действует — надо входить заново. */
+    /**
+     * Пропуск больше не действует — надо входить заново.
+     *
+     * Причину присылает сервис: истёк срок, сменили пароль или в аккаунт
+     * вошли с другого устройства. Игроку важно понимать, что именно
+     * произошло, поэтому текст берётся с ответа как есть.
+     */
     static final class SessionGone extends IOException {
         private static final long serialVersionUID = 1L;
 
-        SessionGone() {
-            super("пропуск больше не действует");
+        SessionGone(String reason) {
+            super(reason == null || reason.isEmpty()
+                    ? "пропуск больше не действует" : reason);
         }
     }
 

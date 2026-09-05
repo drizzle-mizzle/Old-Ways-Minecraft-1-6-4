@@ -52,6 +52,10 @@ DIST_DIR = Path(os.environ.get('OW_DIST', '/data/dist'))
 # Общий скин: его получают все, кто не загрузил свой.
 DEFAULT_SKIN = Path(os.environ.get('OW_DEFAULT_SKIN', '/opt/auth/default_skin.png'))
 
+# Причина отзыва, которую лаунчер показывает игроку как есть
+EVICTED = 'в аккаунт вошли с другого устройства'
+PASSWORD_CHANGED = 'пароль изменён'
+
 SEED_USER = os.environ.get('OW_ADMIN_USER', 'flower')
 SEED_PASSWORD = os.environ.get('OW_ADMIN_PASSWORD', 'flower')
 
@@ -70,10 +74,12 @@ CREATE TABLE IF NOT EXISTS users (
     created_at    INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS sessions (
-    token      TEXT PRIMARY KEY,
-    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    created_at INTEGER NOT NULL,
-    expires_at INTEGER NOT NULL
+    token          TEXT PRIMARY KEY,
+    user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at     INTEGER NOT NULL,
+    expires_at     INTEGER NOT NULL,
+    revoked_at     INTEGER,
+    revoked_reason TEXT
 );
 CREATE TABLE IF NOT EXISTS joins (
     username   TEXT PRIMARY KEY COLLATE NOCASE,
@@ -106,7 +112,20 @@ def startup() -> None:
     (SKIN_DIR / 'cloaks').mkdir(parents=True, exist_ok=True)
     with db() as conn:
         conn.executescript(SCHEMA)
+        migrate(conn)
         seed_admin(conn)
+
+
+def migrate(conn: sqlite3.Connection) -> None:
+    """Дотягивает старую базу до текущей схемы.
+
+    База переживает обновления сервиса, поэтому недостающие столбцы
+    добавляются на месте: пересоздавать таблицу — терять живые сеансы.
+    """
+    have = {row['name'] for row in conn.execute('PRAGMA table_info(sessions)')}
+    for column, kind in (('revoked_at', 'INTEGER'), ('revoked_reason', 'TEXT')):
+        if column not in have:
+            conn.execute(f'ALTER TABLE sessions ADD COLUMN {column} {kind}')
 
 
 def seed_admin(conn: sqlite3.Connection) -> None:
@@ -136,8 +155,18 @@ def find_user(conn, username: str):
 def user_by_session(conn, token: str):
     row = conn.execute(
         'SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id '
-        'WHERE s.token = ? AND s.expires_at > ?', (token, now())).fetchone()
+        'WHERE s.token = ? AND s.expires_at > ? AND s.revoked_at IS NULL',
+        (token, now())).fetchone()
     return row
+
+
+def session_gone(conn, token: str) -> str:
+    """Почему пропуск не подошёл — это видит игрок в лаунчере."""
+    row = conn.execute('SELECT revoked_reason FROM sessions WHERE token = ?',
+                       (token,)).fetchone()
+    if row and row['revoked_reason']:
+        return row['revoked_reason']
+    return 'сессия недействительна'
 
 
 def png_size(data: bytes):
@@ -173,6 +202,12 @@ def api_login(body: LoginRequest):
         token = secrets.token_urlsafe(32)
         expires = now() + SESSION_TTL
         conn.execute('DELETE FROM sessions WHERE expires_at <= ?', (now(),))
+        # На аккаунт — один живой пропуск: новый вход выбивает прежний.
+        # Пропуск не удаляем, а помечаем: по метке прежний лаунчер узнает,
+        # что случилось, и скажет игроку правду вместо «сессия истекла».
+        conn.execute('UPDATE sessions SET revoked_at = ?, revoked_reason = ? '
+                     'WHERE user_id = ? AND revoked_at IS NULL',
+                     (now(), EVICTED, user['id']))
         conn.execute('INSERT INTO sessions (token, user_id, created_at, expires_at) '
                      'VALUES (?, ?, ?, ?)', (token, user['id'], now(), expires))
 
@@ -194,7 +229,7 @@ def api_session(x_session: str = Header(...)):
     with db() as conn:
         user = user_by_session(conn, x_session)
         if not user:
-            raise HTTPException(401, 'сессия недействительна')
+            raise HTTPException(401, session_gone(conn, x_session))
         row = conn.execute('SELECT expires_at FROM sessions WHERE token = ?',
                            (x_session,)).fetchone()
         return LoginResponse(username=user['username'], session=x_session,
@@ -221,12 +256,16 @@ def api_password(body: PasswordChange, x_session: str = Header(...)):
     with db() as conn:
         user = user_by_session(conn, x_session)
         if not user:
-            raise HTTPException(401, 'сессия недействительна')
+            raise HTTPException(401, session_gone(conn, x_session))
         if not bcrypt.checkpw(body.old_password.encode(), user['password_hash']):
             raise HTTPException(403, 'старый пароль не подходит')
         conn.execute('UPDATE users SET password_hash = ?, must_change = 0 WHERE id = ?',
                      (bcrypt.hashpw(body.new_password.encode(), bcrypt.gensalt()), user['id']))
-        conn.execute('DELETE FROM sessions WHERE user_id = ?', (user['id'],))
+        # Пропуска не удаляем, а гасим с причиной: лаунчеру на другой машине
+        # есть что сказать игроку, кроме «сессия недействительна».
+        conn.execute('UPDATE sessions SET revoked_at = ?, revoked_reason = ? '
+                     'WHERE user_id = ? AND revoked_at IS NULL',
+                     (now(), PASSWORD_CHANGED, user['id']))
     return {'ok': True, 'note': 'все сессии завершены, войдите заново'}
 
 
@@ -243,7 +282,7 @@ async def _accept_texture(request: Request, token: str, directory: Path):
     with db() as conn:
         user = user_by_session(conn, token)
         if not user:
-            raise HTTPException(401, 'сессия недействительна')
+            raise HTTPException(401, session_gone(conn, token))
 
     data = await request.body()
     if len(data) > MAX_SKIN_BYTES:
@@ -271,12 +310,26 @@ async def api_cape(request: Request, x_session: str = Header(...)):
     return await _accept_texture(request, x_session, SKIN_DIR / 'cloaks')
 
 
+@app.delete('/api/skin')
+def api_skin_delete(x_session: str = Header(...)):
+    """Убрать свой скин: игрок снова получает общий скин сервера."""
+    with db() as conn:
+        user = user_by_session(conn, x_session)
+        if not user:
+            raise HTTPException(401, session_gone(conn, x_session))
+    path = SKIN_DIR / f'{user["username"].lower()}.png'
+    existed = path.is_file()
+    if existed:
+        path.unlink()
+    return {'ok': True, 'removed': existed}
+
+
 @app.delete('/api/cape')
 def api_cape_delete(x_session: str = Header(...)):
     with db() as conn:
         user = user_by_session(conn, x_session)
         if not user:
-            raise HTTPException(401, 'сессия недействительна')
+            raise HTTPException(401, session_gone(conn, x_session))
     path = SKIN_DIR / 'cloaks' / f'{user["username"].lower()}.png'
     existed = path.is_file()
     if existed:
