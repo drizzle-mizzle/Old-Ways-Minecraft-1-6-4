@@ -24,6 +24,7 @@ import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.Color;
+import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
@@ -81,6 +82,7 @@ final class MainWindow {
     private final Buttons skinButton;
     private final Buttons changePasswordButton;
     private final Buttons logButton;
+    private final Buttons folderButton;
 
     private final JTextArea logArea = new JTextArea();
     private JDialog logDialog;
@@ -120,6 +122,7 @@ final class MainWindow {
         skinButton = Buttons.small("Загрузить скин…", k);
         changePasswordButton = Buttons.small("Сменить пароль…", k);
         logButton = Buttons.small("Журнал", k);
+        folderButton = Buttons.small("Папка игры", k);
         gear = new GearButton("Настройки", k);
 
         build();
@@ -176,6 +179,7 @@ final class MainWindow {
         // входа. Логотип нависает над окном входа, но уходит под меню настроек.
         root.add(gear);
         root.add(logButton);
+        root.add(folderButton);
         root.add(settingsBox);
         root.add(logo);
         root.add(loginBox);
@@ -202,6 +206,11 @@ final class MainWindow {
         logButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 toggleLog();
+            }
+        });
+        folderButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                openFolder();
             }
         });
         gear.onClick(new ActionListener() {
@@ -277,8 +286,12 @@ final class MainWindow {
                 gear.fullWidth(), gear.fullHeight());
 
         Dimension logSize = logButton.getPreferredSize();
-        logButton.setBounds(width - root.s(16) - logSize.width,
-                height - root.s(16) - logSize.height, logSize.width, logSize.height);
+        int bottom = height - root.s(16) - logSize.height;
+        logButton.setBounds(width - root.s(16) - logSize.width, bottom,
+                logSize.width, logSize.height);
+        Dimension folderSize = folderButton.getPreferredSize();
+        folderButton.setBounds(width - root.s(24) - logSize.width - folderSize.width,
+                bottom, folderSize.width, folderSize.height);
 
         placeLogin(boxWidth, boxHeight);
         placeSettings(menuWidth, menuHeight);
@@ -541,6 +554,23 @@ final class MainWindow {
                 say("Пароль изменён, войдите с новым");
             }
         });
+    }
+
+    /** Игра лежит в профиле пользователя, поэтому путь туда нужен под рукой. */
+    private void openFolder() {
+        File dir = cfg.root();
+        try {
+            Util.mkdirs(dir);
+            if (Desktop.isDesktopSupported()) {
+                Desktop.getDesktop().open(dir);
+            } else {
+                new ProcessBuilder("explorer.exe", dir.getPath()).start();
+            }
+            say(dir.getPath());
+        } catch (Exception e) {
+            Log.error("не открылась папка " + dir, e);
+            say("Папка игры: " + dir);
+        }
     }
 
     // ---------------------------------------------------------------- журнал

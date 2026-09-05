@@ -2,12 +2,12 @@
  * W-Factory: запускатель в одном exe.
  *
  * Внутри файла лежит рантайм Java и сам лаунчер, сжатые LZMA. При первом
- * запуске всё распаковывается рядом с exe, дальше запуск идёт сразу — ничего
- * не устанавливается, ничего не пишется в систему, всё живёт в одной папке:
+ * запуске всё распаковывается в папку приложения, дальше запуск идёт сразу.
+ * Ничего не устанавливается и не пишется в систему; рядом с exe тоже ничего
+ * не появляется — он остаётся одним файлом, который можно держать где угодно.
  *
- *     W-Factory.exe
- *     runtime\        распакованная Java 8
- *     game\           клиент, ресурсы, миры, настройки
+ *     %LOCALAPPDATA%\W-Factory\runtime\   Java 8
+ *     %LOCALAPPDATA%\W-Factory\game\      клиент, ресурсы, миры, настройки
  *
  * Почему не готовый SFX: все стандартные модули 7-Zip распаковывают во
  * временную папку и стирают её после запуска — это установщик, а нужна
@@ -432,6 +432,34 @@ static void unpack(const wchar_t *self, const wchar_t *base, const struct payloa
     }
 }
 
+/*
+ * Куда класть рантайм и игру: в папку приложения внутри профиля.
+ *
+ * Рядом с exe не создаётся ничего — он остаётся одним файлом, который можно
+ * держать хоть в «Загрузках». Профиль берётся локальный, а не перемещаемый:
+ * четыреста мегабайт игры незачем таскать за пользователем по сети.
+ */
+static void choose_base(wchar_t *out, size_t max)
+{
+    static const wchar_t *VARIABLES[] = { L"LOCALAPPDATA", L"APPDATA" };
+    for (int i = 0; i < 2; i++)
+    {
+        wchar_t profile[MAX_PATH * 2], target[MAX_PATH * 2];
+        DWORD n = GetEnvironmentVariableW(VARIABLES[i], profile, MAX_PATH * 2);
+        if (n == 0 || n >= MAX_PATH * 2) continue;
+        join(target, MAX_PATH * 2, profile, APP_NAME);
+        CreateDirectoryW(target, NULL);
+        if (writable(target))
+        {
+            wcsncpy(out, target, max);
+            out[max - 1] = 0;
+            return;
+        }
+    }
+    fail(L"Не нашёл, куда распаковать игру: профиль пользователя недоступен "
+         L"для записи.");
+}
+
 /* ------------------------------------------------------------------- запуск */
 
 /* Хвост своей командной строки — чтобы из exe работали и ключи лаунчера. */
@@ -460,27 +488,12 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
     if (!GetModuleFileNameW(NULL, self, MAX_PATH * 2))
         fail(L"Не удалось определить собственный путь.");
 
-    wchar_t base[MAX_PATH * 2];
-    wcscpy(base, self);
-    wchar_t *slash = wcsrchr(base, L'\\');
-    if (!slash) fail(L"Не удалось определить папку программы.");
-    *slash = 0;
-
     struct payload load;
     if (!read_trailer(self, &load))
         fail(L"Внутри нет вложенных данных — файл собран неправильно.");
 
-    /* Папка только для чтения (Program Files, диск без прав) — уходим
-       в профиль пользователя, чтобы игра всё равно запустилась. */
-    if (!writable(base))
-    {
-        wchar_t local[MAX_PATH * 2];
-        DWORD n = GetEnvironmentVariableW(L"LOCALAPPDATA", local, MAX_PATH * 2);
-        if (n == 0 || n >= MAX_PATH * 2)
-            fail(L"Рядом с программой нельзя писать, и профиль пользователя не найден.");
-        join(base, MAX_PATH * 2, local, APP_NAME);
-        CreateDirectoryW(base, NULL);
-    }
+    wchar_t base[MAX_PATH * 2];
+    choose_base(base, MAX_PATH * 2);
 
     if (!already_unpacked(base, &load))
         unpack(self, base, &load);
@@ -488,8 +501,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
     wchar_t java[MAX_PATH * 2];
     join(java, MAX_PATH * 2, base, L"runtime\\bin\\javaw.exe");
     if (!exists(java))
-        fail(L"Java не распакована. Удалите папку runtime рядом с программой "
-             L"и запустите снова.");
+        fail(L"Java не распакована. Удалите папку W-Factory в профиле "
+             L"пользователя и запустите снова.");
 
     wchar_t jar[MAX_PATH * 2], home[MAX_PATH * 2];
     join(jar, MAX_PATH * 2, base, L"wfactory-launcher.jar");
