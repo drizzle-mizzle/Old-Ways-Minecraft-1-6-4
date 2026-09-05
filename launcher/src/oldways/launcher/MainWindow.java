@@ -96,8 +96,11 @@ final class MainWindow {
 
     private final SkinView skinView;
     private final Buttons changeSkinButton;
+    private final Buttons changeCapeButton;
     private final Buttons changePasswordButton;
     private final JLabel skinCaption;
+    private final JLabel capeCaption;
+    private final Link removeCapeLink;
     private final CloseButton accountClose;
 
     private final JLabel passwordTitle;
@@ -177,6 +180,11 @@ final class MainWindow {
         changePasswordButton = Buttons.small("Изменить пароль…", k);
         skinCaption = label(" ", 11);
         skinCaption.setForeground(Theme.TEXT_DIM);
+        changeCapeButton = Buttons.small("Изменить плащ…", k);
+        capeCaption = label(" ", 11);
+        capeCaption.setForeground(Theme.TEXT_DIM);
+        removeCapeLink = new Link("убрать", Theme.DANGER, k);
+        removeCapeLink.setVisible(false);
         accountClose = new CloseButton(k);
 
         passwordTitle = label("Смена пароля", 18);
@@ -287,6 +295,9 @@ final class MainWindow {
         accountBox.add(skinView);
         accountBox.add(changeSkinButton);
         accountBox.add(skinCaption);
+        accountBox.add(changeCapeButton);
+        accountBox.add(capeCaption);
+        accountBox.add(removeCapeLink);
         accountBox.add(changePasswordButton);
         accountBox.setVisible(false);
 
@@ -344,6 +355,16 @@ final class MainWindow {
         changeSkinButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 onSkin();
+            }
+        });
+        changeCapeButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                onCape();
+            }
+        });
+        removeCapeLink.onClick(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                onCapeRemove();
             }
         });
         changePasswordButton.addActionListener(new ActionListener() {
@@ -610,13 +631,25 @@ final class MainWindow {
         int rightWidth = boxWidth - right - pad;
         int buttonHeight = root.s(40);
         int captionHeight = root.s(18);
-        int stack = buttonHeight + root.s(10) + captionHeight + root.s(26) + buttonHeight;
+        int afterCaption = root.s(18);
+        int stack = (buttonHeight + root.s(8) + captionHeight + afterCaption) * 2 + buttonHeight;
         int y = pad + (previewHeight - stack) / 2;
 
         changeSkinButton.setBounds(right, y, rightWidth, buttonHeight);
-        y += buttonHeight + root.s(10);
+        y += buttonHeight + root.s(8);
         skinCaption.setBounds(right, y, rightWidth, captionHeight);
-        y += captionHeight + root.s(26);
+        y += captionHeight + afterCaption;
+
+        changeCapeButton.setBounds(right, y, rightWidth, buttonHeight);
+        y += buttonHeight + root.s(8);
+        // Подпись и «убрать» стоят в одной строке: ссылка появляется, только
+        // когда плащ есть, и подпись под неё не переезжает.
+        int removeWidth = removeCapeLink.textWidth() + root.s(14);
+        capeCaption.setBounds(right, y, rightWidth - removeWidth, captionHeight);
+        removeCapeLink.setBounds(right + rightWidth - removeWidth, y,
+                removeWidth, captionHeight);
+        y += captionHeight + afterCaption;
+
         changePasswordButton.setBounds(right, y, rightWidth, buttonHeight);
     }
 
@@ -804,6 +837,7 @@ final class MainWindow {
         logoutLink.setVisible(false);
         accountLink.setVisible(false);
         changeSkinButton.setEnabled(false);
+        changeCapeButton.setEnabled(false);
         changePasswordButton.setEnabled(false);
         progress.setVisible(true);
         progress.setRunning(true);
@@ -861,6 +895,7 @@ final class MainWindow {
                     logoutLink.setVisible(true);
                     accountLink.setVisible(true);
                     changeSkinButton.setEnabled(true);
+                    changeCapeButton.setEnabled(true);
                     changePasswordButton.setEnabled(true);
                     progress.setRunning(false);
                     progress.setVisible(false);
@@ -900,15 +935,12 @@ final class MainWindow {
     private void onSkin() {
         final Auth.Session current = session;
         if (current == null) return;     // кнопка видна только вошедшему
-        JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Скин: PNG 64×32 или 64×64");
-        chooser.setFileFilter(new FileNameExtensionFilter("Картинка PNG", "png"));
-        if (chooser.showOpenDialog(frame) != JFileChooser.APPROVE_OPTION) return;
-        final File file = chooser.getSelectedFile();
+        final File file = choose("Скин: PNG 64×32, 64×64 или крупнее, до 1024×512");
+        if (file == null) return;
         run("Отправляю скин…", new Task() {
             public void go() throws Exception {
                 String base = Address.parse(addressField.getText().trim()).base();
-                Auth.uploadSkin(base, current.token, skinBytes(file));
+                Auth.uploadSkin(base, current.token, textureBytes(file, "скин"));
                 cfg.set("skin.file", file.getName());
                 cfg.save();
                 say("Скин принят: " + file.getName());
@@ -917,26 +949,74 @@ final class MainWindow {
         });
     }
 
+    private void onCape() {
+        final Auth.Session current = session;
+        if (current == null) return;
+        final File file = choose("Плащ: PNG 64×32 или крупнее, до 1024×512");
+        if (file == null) return;
+        run("Отправляю плащ…", new Task() {
+            public void go() throws Exception {
+                String base = Address.parse(addressField.getText().trim()).base();
+                Auth.uploadCape(base, current.token, textureBytes(file, "плащ"));
+                cfg.set("cape.file", file.getName());
+                cfg.save();
+                say("Плащ принят: " + file.getName());
+                loadSkin();
+            }
+        });
+    }
+
+    private void onCapeRemove() {
+        final Auth.Session current = session;
+        if (current == null) return;
+        run("Убираю плащ…", new Task() {
+            public void go() throws Exception {
+                String base = Address.parse(addressField.getText().trim()).base();
+                Auth.removeCape(base, current.token);
+                cfg.set("cape.file", "");
+                cfg.save();
+                say("Плащ убран");
+                loadSkin();
+            }
+        });
+    }
+
+    private File choose(String title) {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle(title);
+        chooser.setFileFilter(new FileNameExtensionFilter("Картинка PNG", "png"));
+        return chooser.showOpenDialog(frame) == JFileChooser.APPROVE_OPTION
+                ? chooser.getSelectedFile() : null;
+    }
+
     /**
-     * Готовит скин к отправке.
+     * Готовит текстуру к отправке.
      *
-     * Игра 1.6.4 понимает только старую развёртку 64x32. Современные скины
-     * приходят 64x64, и верхняя их половина — ровно та же классическая
-     * раскладка, поэтому лишнее просто отрезаем: иначе игрок увидел бы
-     * в игре мешанину вместо своего персонажа.
+     * Развёртка 1.6.4 вдвое шире, чем выше: 64x32 и её кратные увеличения
+     * до 1024x512 — крупные тянет OptiFine из нашей сборки. Квадратная
+     * картинка — это современная развёртка 64x64, где верхняя половина
+     * совпадает с классической, поэтому лишнее отрезаем: иначе в игре вышла
+     * бы мешанина вместо персонажа.
      */
-    private static byte[] skinBytes(File file) throws IOException {
+    private static byte[] textureBytes(File file, String what) throws IOException {
         BufferedImage image = javax.imageio.ImageIO.read(file);
         if (image == null) throw new IOException("это не картинка PNG");
-        if (image.getWidth() != 64 || (image.getHeight() != 32 && image.getHeight() != 64)) {
-            throw new IOException("скин должен быть 64×32 или 64×64, а тут "
-                    + image.getWidth() + "×" + image.getHeight());
+        int width = image.getWidth();
+        int height = image.getHeight();
+        if (width < 64 || width > 1024 || Integer.bitCount(width) != 1) {
+            throw new IOException(what + " должен быть шириной 64, 128, 256, 512 или 1024, а тут "
+                    + width + "×" + height);
         }
-        if (image.getHeight() == 32) return read(file);
+        if (height == width / 2) return read(file);
+        if (height != width) {
+            throw new IOException(what + " должен быть вдвое шире, чем выше, а тут "
+                    + width + "×" + height);
+        }
 
-        BufferedImage classic = new BufferedImage(64, 32, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage classic = new BufferedImage(width, height / 2,
+                BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = classic.createGraphics();
-        g.drawImage(image, 0, 0, 64, 32, 0, 0, 64, 32, null);
+        g.drawImage(image, 0, 0, width, height / 2, 0, 0, width, height / 2, null);
         g.dispose();
         java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
         javax.imageio.ImageIO.write(classic, "png", out);
@@ -944,17 +1024,20 @@ final class MainWindow {
     }
 
     /** Тянет скин для предпросмотра: свой или общий — видно по заголовку. */
+    /** Тянет с сервера скин и плащ игрока и показывает их на модели. */
     private void loadSkin() {
         final Auth.Session current = session;
         if (current == null) return;
         skinView.setSkin(SkinView.placeholder());
+        skinView.setCape(null);
         skinCaption.setText("загружаю…");
+        capeCaption.setText(" ");
         new Thread(new Runnable() {
             public void run() {
+                String base = Address.parse(addressField.getText().trim()).base();
                 String note;
                 BufferedImage image = null;
                 try {
-                    String base = Address.parse(addressField.getText().trim()).base();
                     String[] kind = new String[1];
                     byte[] png = Http.fetch(
                             base + "/MinecraftSkins/" + current.username + ".png",
@@ -968,12 +1051,35 @@ final class MainWindow {
                     Log.error("не удалось получить скин", e);
                     note = "скин не получен";
                 }
+
+                // Плаща может не быть — сервис отвечает 404, и это обычное
+                // дело, а не поломка.
+                BufferedImage capeImage = null;
+                String capeNote = "плаща нет";
+                try {
+                    byte[] png = Http.fetch(
+                            base + "/MinecraftCloaks/" + current.username + ".png", null, null);
+                    capeImage = javax.imageio.ImageIO.read(
+                            new java.io.ByteArrayInputStream(png));
+                    capeNote = cfg.get("cape.file", "");
+                    if (capeNote.isEmpty()) capeNote = "свой плащ";
+                } catch (Http.HttpError e) {
+                    if (e.code != 404) Log.error("не удалось получить плащ", e);
+                } catch (Exception e) {
+                    Log.error("не удалось получить плащ", e);
+                }
+
                 final BufferedImage ready = image;
+                final BufferedImage readyCape = capeImage;
                 final String caption = note;
+                final String capeText = capeNote;
                 SwingUtilities.invokeLater(new Runnable() {
                     public void run() {
                         if (ready != null) skinView.setSkin(ready);
+                        skinView.setCape(readyCape);
                         skinCaption.setText(caption);
+                        capeCaption.setText(capeText);
+                        removeCapeLink.setVisible(readyCape != null);
                     }
                 });
             }

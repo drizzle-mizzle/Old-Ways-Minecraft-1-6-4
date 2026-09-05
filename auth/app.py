@@ -41,10 +41,15 @@ DB_PATH = Path(os.environ.get('OW_DB', '/data/auth.sqlite3'))
 SKIN_DIR = Path(os.environ.get('OW_SKINS', '/data/skins'))
 SESSION_TTL = int(os.environ.get('OW_SESSION_TTL', 60 * 60 * 24 * 7))  # неделя
 JOIN_TTL = int(os.environ.get('OW_JOIN_TTL', 60))                      # окно на рукопожатие
-MAX_SKIN_BYTES = 64 * 1024
+# Хватает на скин 1024x512: обычный 64x32 весит около килобайта, самый
+# крупный HD — десятки килобайт, запас взят на нежатые PNG.
+MAX_SKIN_BYTES = 512 * 1024
+# Разрешённые размеры текстур: развёртка 1.6.4 (вдвое шире, чем выше) в любом
+# кратном увеличении. Больше 1024x512 не пускаем — это уже мегабайты видеопамяти
+# на каждого игрока в поле зрения, а разницы на экране не видно.
+TEXTURE_SIZES = [(64 * k, 32 * k) for k in (1, 2, 4, 8, 16)]
 DIST_DIR = Path(os.environ.get('OW_DIST', '/data/dist'))
-# Общий скин: его получают все, кто не загрузил свой. 64x32 — 1.6.4 понимает
-# только этот формат, шестьдесят четыре на шестьдесят четыре клиент обрежет.
+# Общий скин: его получают все, кто не загрузил свой.
 DEFAULT_SKIN = Path(os.environ.get('OW_DEFAULT_SKIN', '/opt/auth/default_skin.png'))
 
 SEED_USER = os.environ.get('OW_ADMIN_USER', 'flower')
@@ -98,6 +103,7 @@ def now() -> int:
 def startup() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     SKIN_DIR.mkdir(parents=True, exist_ok=True)
+    (SKIN_DIR / 'cloaks').mkdir(parents=True, exist_ok=True)
     with db() as conn:
         conn.executescript(SCHEMA)
         seed_admin(conn)
@@ -197,26 +203,58 @@ def api_password(body: PasswordChange, x_session: str = Header(...)):
     return {'ok': True, 'note': 'все сессии завершены, войдите заново'}
 
 
-@app.post('/api/skin')
-async def api_skin(request: Request, x_session: str = Header(...)):
+async def _accept_texture(request: Request, token: str, directory: Path):
+    """Приём скина или плаща: проверка сеанса, размера файла и развёртки.
+
+    HD-текстуры (128x64 и далее до 1024x512) понимает не сам клиент 1.6.4,
+    а OptiFine из нашей сборки: он тянет картинку на кратную сетку вместо
+    жёстких 64x32. Игроку без OptiFine достанется мыло, но такого игрока у нас
+    и нет — мод едет в раздаче.
+    """
     # сначала аутентификация, потом разбор тела: посторонний не должен узнавать
     # по коду ответа, валиден ли его файл
     with db() as conn:
-        user = user_by_session(conn, x_session)
+        user = user_by_session(conn, token)
         if not user:
             raise HTTPException(401, 'сессия недействительна')
 
     data = await request.body()
     if len(data) > MAX_SKIN_BYTES:
-        raise HTTPException(413, f'скин больше {MAX_SKIN_BYTES} байт')
+        raise HTTPException(413, f'файл больше {MAX_SKIN_BYTES // 1024} КБ')
     size = png_size(data)
     if size is None:
         raise HTTPException(415, 'это не PNG')
-    if size not in ((64, 32), (64, 64)):
-        raise HTTPException(422, f'1.6.4 понимает только 64x32 и 64x64, а тут {size[0]}x{size[1]}')
+    if size not in TEXTURE_SIZES:
+        allowed = ', '.join(f'{w}x{h}' for w, h in TEXTURE_SIZES)
+        raise HTTPException(422, f'нужен размер из набора {allowed}, а тут {size[0]}x{size[1]}')
 
-    (SKIN_DIR / f'{user["username"].lower()}.png').write_bytes(data)
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / f'{user["username"].lower()}.png').write_bytes(data)
     return {'ok': True, 'width': size[0], 'height': size[1]}
+
+
+@app.post('/api/skin')
+async def api_skin(request: Request, x_session: str = Header(...)):
+    return await _accept_texture(request, x_session, SKIN_DIR)
+
+
+@app.post('/api/cape')
+async def api_cape(request: Request, x_session: str = Header(...)):
+    """Плащ игрока. В 1.6.4 это отдельная текстура той же развёртки."""
+    return await _accept_texture(request, x_session, SKIN_DIR / 'cloaks')
+
+
+@app.delete('/api/cape')
+def api_cape_delete(x_session: str = Header(...)):
+    with db() as conn:
+        user = user_by_session(conn, x_session)
+        if not user:
+            raise HTTPException(401, 'сессия недействительна')
+    path = SKIN_DIR / 'cloaks' / f'{user["username"].lower()}.png'
+    existed = path.is_file()
+    if existed:
+        path.unlink()
+    return {'ok': True, 'removed': existed}
 
 
 # -------------------------------------------------- легаси-протокол Minecraft

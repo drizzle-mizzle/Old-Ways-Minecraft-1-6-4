@@ -77,11 +77,23 @@ public class SkinView extends JComponent {
         new Part(4, 12, 4,  2,  6, 0,   0, 48, false, 0.25f),
     };
 
+    /**
+     * Плащ: коробка 10x16x1 за спиной.
+     *
+     * Развёртка у него та же, что у любой части тела, и начинается в левом
+     * верхнем углу текстуры — поэтому хватает одной записи с u=0, v=0.
+     * Наружу смотрит задняя грань, и текстура ей достаётся из правой
+     * половины прямоугольника, как в игре.
+     */
+    private static final Part CAPE =
+            new Part(10, 16, 1,  0, 16, -2.6f,  0, 0, false, 0);
+
     private static final double PITCH = Math.toRadians(9);
 
     private final double scale;
     private final Timer timer;
     private BufferedImage skin;
+    private BufferedImage cape;
     private double angle = Math.toRadians(200);   // начинаем вполоборота
 
     public SkinView(double scale) {
@@ -99,6 +111,12 @@ public class SkinView extends JComponent {
         repaint();
     }
 
+    /** Плащ или null, если игрок его не загружал. */
+    public void setCape(BufferedImage cape) {
+        this.cape = cape;
+        repaint();
+    }
+
     public void spin(boolean on) {
         if (on) timer.start();
         else timer.stop();
@@ -111,6 +129,7 @@ public class SkinView extends JComponent {
         double[] origin, along, down;
         int tu, tv, tw, th;
         double depth;
+        BufferedImage texture;
     }
 
     private double[] rotate(double x, double y, double z) {
@@ -122,7 +141,8 @@ public class SkinView extends JComponent {
     }
 
     private void face(List<Face> out, double[] o, double[] u, double[] v,
-                      double[] normal, int tu, int tv, int tw, int th, boolean mirror) {
+                      double[] normal, int tu, int tv, int tw, int th, boolean mirror,
+                      BufferedImage texture) {
         double[] rn = rotate(normal[0], normal[1], normal[2]);
         if (rn[2] <= 0) return;                    // грань смотрит от нас
 
@@ -138,10 +158,11 @@ public class SkinView extends JComponent {
         f.down = rotate(origin[0] + v[0], origin[1] + v[1], origin[2] + v[2]);
         f.tu = tu; f.tv = tv; f.tw = tw; f.th = th;
         f.depth = (f.origin[2] + f.along[2] + f.down[2]) / 3;
+        f.texture = texture;
         out.add(f);
     }
 
-    private void collect(List<Face> out, Part p, boolean mirrorTexture) {
+    private void collect(List<Face> out, Part p, boolean mirrorTexture, BufferedImage texture) {
         float w = p.w + p.grow * 2, h = p.h + p.grow * 2, d = p.d + p.grow * 2;
         double x0 = p.x - w / 2, x1 = p.x + w / 2;
         double y0 = p.y - h / 2, y1 = p.y + h / 2;
@@ -153,22 +174,22 @@ public class SkinView extends JComponent {
         // Развёртка идёт вокруг коробки: правый бок, перёд, левый бок, зад.
         face(out, new double[] { x0, y1, z0 }, new double[] { 0, 0, d },
                 new double[] { 0, -h, 0 }, new double[] { -1, 0, 0 },
-                u, v + id, id, ih, m);
+                u, v + id, id, ih, m, texture);
         face(out, new double[] { x0, y1, z1 }, new double[] { w, 0, 0 },
                 new double[] { 0, -h, 0 }, new double[] { 0, 0, 1 },
-                u + id, v + id, iw, ih, m);
+                u + id, v + id, iw, ih, m, texture);
         face(out, new double[] { x1, y1, z1 }, new double[] { 0, 0, -d },
                 new double[] { 0, -h, 0 }, new double[] { 1, 0, 0 },
-                u + id + iw, v + id, id, ih, m);
+                u + id + iw, v + id, id, ih, m, texture);
         face(out, new double[] { x1, y1, z0 }, new double[] { -w, 0, 0 },
                 new double[] { 0, -h, 0 }, new double[] { 0, 0, -1 },
-                u + id + iw + id, v + id, iw, ih, m);
+                u + id + iw + id, v + id, iw, ih, m, texture);
         face(out, new double[] { x0, y1, z0 }, new double[] { w, 0, 0 },
                 new double[] { 0, 0, d }, new double[] { 0, 1, 0 },
-                u + id, v, iw, id, m);
+                u + id, v, iw, id, m, texture);
         face(out, new double[] { x0, y0, z1 }, new double[] { w, 0, 0 },
                 new double[] { 0, 0, -d }, new double[] { 0, -1, 0 },
-                u + id + iw, v, iw, id, m);
+                u + id + iw, v, iw, id, m, texture);
     }
 
     @Override
@@ -193,10 +214,11 @@ public class SkinView extends JComponent {
                 RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
 
         List<Face> faces = new ArrayList<Face>();
-        boolean modern = skin.getHeight() >= 64;
+        boolean modern = skin.getHeight() >= skin.getWidth();
         for (Part part : (modern ? MODERN : CLASSIC)) {
-            collect(faces, part, part.mirror);
+            collect(faces, part, part.mirror, skin);
         }
+        if (cape != null) collect(faces, CAPE, false, cape);
         Collections.sort(faces, new Comparator<Face>() {
             public int compare(Face a, Face b) {
                 return Double.compare(a.depth, b.depth);   // дальние раньше
@@ -222,10 +244,15 @@ public class SkinView extends JComponent {
             ux += ux / ul * bulge * 2; uy += uy / ul * bulge * 2;
             vx += vx / vl * bulge * 2; vy += vy / vl * bulge * 2;
 
+            int step = Math.max(1, f.texture.getWidth() / 64);
             AffineTransform at = new AffineTransform(
-                    ux / f.tw, uy / f.tw, vx / f.th, vy / f.th, ox, oy);
+                    ux / (f.tw * step), uy / (f.tw * step),
+                    vx / (f.th * step), vy / (f.th * step), ox, oy);
             try {
-                g.drawImage(skin.getSubimage(f.tu, f.tv, f.tw, f.th), at, null);
+                // Текстура может быть крупнее развёртки: HD-скин 1024x512 —
+                // та же сетка, увеличенная в кратное число раз.
+                g.drawImage(f.texture.getSubimage(f.tu * step, f.tv * step,
+                        f.tw * step, f.th * step), at, null);
             } catch (RuntimeException ignored) {
                 // область за пределами скина — пропускаем эту грань
             }

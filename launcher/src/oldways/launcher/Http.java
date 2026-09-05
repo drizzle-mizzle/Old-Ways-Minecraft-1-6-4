@@ -108,6 +108,17 @@ final class Http {
         }
     }
 
+    static String delete(String url, String session) throws IOException {
+        HttpURLConnection conn = open(url);
+        try {
+            conn.setRequestMethod("DELETE");
+            if (session != null) conn.setRequestProperty("X-Session", session);
+            return new String(finish(conn), "UTF-8");
+        } finally {
+            conn.disconnect();
+        }
+    }
+
     /**
      * Качает файл во временный и переименовывает по готовности.
      *

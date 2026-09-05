@@ -71,4 +71,21 @@ final class Auth {
             throw new IOException("скин не принят: " + e.detail());
         }
     }
+
+    /** Плащ — отдельная текстура той же развёртки, что и скин. */
+    static void uploadCape(String base, String session, byte[] png) throws IOException {
+        try {
+            Http.post(base + "/api/cape", png, "image/png", session);
+        } catch (Http.HttpError e) {
+            throw new IOException("плащ не принят: " + e.detail());
+        }
+    }
+
+    static void removeCape(String base, String session) throws IOException {
+        try {
+            Http.delete(base + "/api/cape", session);
+        } catch (Http.HttpError e) {
+            throw new IOException("плащ не убрался: " + e.detail());
+        }
+    }
 }
