@@ -17,6 +17,7 @@ Dockerfile      text eol=lf
 
 # Батники запускает cmd.exe, тут нужен CRLF
 *.bat           text eol=crlf
+*.cmd           text eol=crlf
 
 # Бинарники git трогать не должен
 *.jar           binary
