@@ -139,7 +139,9 @@ public final class Theme {
         BufferedImage out = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = out.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
-                RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+        g.setRenderingHint(RenderingHints.KEY_RENDERING,
+                RenderingHints.VALUE_RENDER_QUALITY);
         g.drawImage(source, (width - w) / 2, (height - h) / 2, w, h, null);
         g.dispose();
         return out;
@@ -217,8 +219,10 @@ public final class Theme {
                 RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL,
                 RenderingHints.VALUE_STROKE_PURE);
+        // на увеличении фона и логотипа бикубическая заметно чище билинейной,
+        // а рисуем мы их считанные разы за перерисовку
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
-                RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                RenderingHints.VALUE_INTERPOLATION_BICUBIC);
         return g;
     }
 

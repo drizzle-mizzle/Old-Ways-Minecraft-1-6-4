@@ -29,9 +29,11 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.GraphicsEnvironment;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -136,12 +138,40 @@ final class MainWindow {
         });
     }
 
-    /** Макет нарисован под 1280x800; на экран поменьше окно ужимается целиком. */
-    private static double windowScale() {
-        Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
-        double byWidth = (screen.width - 80.0) / Theme.DESIGN_W;
-        double byHeight = (screen.height - 120.0) / Theme.DESIGN_H;
-        return Math.max(0.55, Math.min(1.0, Math.min(byWidth, byHeight)));
+    /**
+     * Во сколько раз рисовать макет 1280x800.
+     *
+     * За основу берётся масштаб интерфейса системы: 96 точек на дюйм — это
+     * сто процентов, 144 — полтора раза. Java 8 объявляет себя знающей про DPI,
+     * но сама ничего не увеличивает, поэтому на экране 4К при 150% окно без
+     * этой поправки выходило втрое мельче соседних программ.
+     *
+     * Дальше масштаб ужимается так, чтобы окно влезло в рабочую область
+     * (без панели задач): на ноутбуке 1920x1080 при тех же 150% полный
+     * полуторный размер уже не помещается.
+     *
+     * Значение можно закрепить руками — ключ scale в launcher.properties.
+     */
+    private double windowScale() {
+        double manual = 0;
+        try {
+            manual = Double.parseDouble(cfg.get("scale", "0").replace(',', '.'));
+        } catch (NumberFormatException ignored) {
+            // в настройках чепуха — считаем сами
+        }
+
+        double system = Toolkit.getDefaultToolkit().getScreenResolution() / 96.0;
+        double wanted = manual > 0 ? manual : system;
+
+        Rectangle work = GraphicsEnvironment.getLocalGraphicsEnvironment()
+                .getMaximumWindowBounds();
+        double byWidth = (work.width - 80.0) / Theme.DESIGN_W;
+        double byHeight = (work.height - 60.0) / Theme.DESIGN_H;
+        double fits = Math.min(byWidth, byHeight);
+
+        Log.info("масштаб окна: система %.2f, помещается %.2f%s",
+                system, fits, manual > 0 ? String.format(", задан %.2f", manual) : "");
+        return Math.max(0.55, Math.min(wanted, fits));
     }
 
     private JLabel label(String text, float size) {

@@ -44,7 +44,23 @@ static const wchar_t *APP_NAME = L"Old Ways";
 static HWND  g_window;
 static HFONT g_font;
 static double g_part;
+static double g_scale = 1.0;
 static wchar_t g_note[160] = L"";
+
+/* Масштаб интерфейса системы: 96 точек на дюйм — сто процентов. Без него
+   окошко распаковки на экране 4К при 150% выходит с почтовую марку. */
+static double system_scale(void)
+{
+    HDC screen = GetDC(NULL);
+    int dpi = screen ? GetDeviceCaps(screen, LOGPIXELSX) : 96;
+    if (screen) ReleaseDC(NULL, screen);
+    return dpi > 0 ? dpi / 96.0 : 1.0;
+}
+
+static int px(int design)
+{
+    return (int)(design * g_scale + 0.5);
+}
 
 static void paint(HWND window)
 {
@@ -57,16 +73,16 @@ static void paint(HWND window)
     SelectObject(dc, g_font);
     SetBkMode(dc, TRANSPARENT);
     RECT text = client;
-    text.left += 18;
-    text.top += 18;
-    text.right -= 18;
+    text.left += px(18);
+    text.top += px(18);
+    text.right -= px(18);
     DrawTextW(dc, g_note, -1, &text, DT_LEFT | DT_TOP | DT_WORDBREAK);
 
     RECT bar;
-    bar.left = 18;
-    bar.right = client.right - 18;
-    bar.top = client.bottom - 38;
-    bar.bottom = bar.top + 14;
+    bar.left = px(18);
+    bar.right = client.right - px(18);
+    bar.top = client.bottom - px(38);
+    bar.bottom = bar.top + px(14);
     FrameRect(dc, &bar, (HBRUSH)GetStockObject(GRAY_BRUSH));
 
     RECT fill = bar;
@@ -127,7 +143,8 @@ static void show_window(const wchar_t *note)
     cls.hIconSm = cls.hIcon;
     RegisterClassExW(&cls);
 
-    int width = 460, height = 150;
+    g_scale = system_scale();
+    int width = px(460), height = px(150);
     RECT work;
     SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0);
     int x = work.left + (work.right - work.left - width) / 2;

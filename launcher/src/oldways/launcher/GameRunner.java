@@ -3,6 +3,9 @@ package oldways.launcher;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.awt.GraphicsEnvironment;
+import java.awt.Rectangle;
+import java.awt.Toolkit;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
@@ -58,6 +61,21 @@ final class GameRunner {
                     .replace("${assets_root}", cfg.assets().getPath())
                     .replace("${assets_index_name}", manifest.assets));
         }
+
+        // Игра про DPI тоже не знает: окно 854x480 на экране 4К выходит
+        // с ладонь. Берём тот же масштаб, что и для лаунчера, и не вылезаем
+        // за рабочую область.
+        Rectangle work = GraphicsEnvironment.getLocalGraphicsEnvironment()
+                .getMaximumWindowBounds();
+        double dpi = Toolkit.getDefaultToolkit().getScreenResolution() / 96.0;
+        int width = Math.min(cfg.getInt("game.width", (int) Math.round(854 * dpi)),
+                work.width - 40);
+        int height = Math.min(cfg.getInt("game.height", (int) Math.round(480 * dpi)),
+                work.height - 60);
+        command.add("--width");
+        command.add(String.valueOf(width));
+        command.add("--height");
+        command.add(String.valueOf(height));
 
         if (address != null) {   // сразу подключиться к серверу, без списка миров
             command.add("--server");
