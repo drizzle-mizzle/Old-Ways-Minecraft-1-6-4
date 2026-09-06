@@ -160,7 +160,7 @@ final class MainWindow {
 
         memory = new MemorySlider(512, 4096, 512, cfg.getInt("memory", 2048), k);
         memoryLabel = label("Выделенная память: " + memory.text(), 14);
-        addressLabel = label("Адрес сервера авторизации", 14);
+        addressLabel = label("Адрес сервера", 14);
         addressField = Fields.text(k, "localhost");
         autoConnect = new Check("Подключаться к серверу сразу",
                 !"false".equals(cfg.get("autoconnect", "true")), k);
