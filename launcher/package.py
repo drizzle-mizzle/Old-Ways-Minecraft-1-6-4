@@ -105,13 +105,42 @@ END
 '''
 
 
+# Имена сборочных утилит различаются: на Windows берётся набор MinGW-w64,
+# распакованный рядом с репозиторием, на Linux — кросс-компилятор из пакета
+# mingw-w64, который лежит в системе с приставкой в имени.
+CROSS = 'x86_64-w64-mingw32-'
+
+
+def names(base):
+    """Под какими именами искать утилиту.
+
+    На Windows это набор MinGW-w64, распакованный рядом с репозиторием: там
+    утилиты зовутся просто gcc и windres. На Linux — только имена с приставкой:
+    просто gcc там соберёт ELF под саму Linux, а нам нужен exe. По той же
+    причине нельзя брать и виндовые файлы из mingw64/: запустить их всё равно
+    не выйдет.
+    """
+    if os.name == 'nt':
+        return (base + '.exe', base, CROSS + base + '.exe', CROSS + base)
+    return (CROSS + base,)
+
+
 def tool(root, *names):
-    """Ищет утилиту в каталоге сборочного набора."""
+    """Ищет утилиту: сперва в своём наборе, затем в системе.
+
+    Свой набор — это распакованный MinGW-w64 рядом с репозиторием; так собирают
+    на Windows. На Linux того же добиваются пакетом mingw-w64, и тогда искать
+    надо в PATH — каталога `bin` у него в нашем смысле нет.
+    """
     for name in names:
         path = root / 'bin' / name
         if path.is_file():
             return path
-    raise SystemExit(f'не нашёл {names[0]} в {root}')
+    for name in names:
+        found = shutil.which(name)
+        if found:
+            return Path(found)
+    raise SystemExit(f'не нашёл {names[0]}: ни в {root / "bin"}, ни в PATH')
 
 
 def launcher_version():
@@ -172,8 +201,8 @@ def mingw_env(mingw):
 
 
 def compile_stub(mingw, build, version, exe_name):
-    gcc = tool(mingw, 'gcc.exe')
-    windres = tool(mingw, 'windres.exe')
+    gcc = tool(mingw, *names('gcc'))
+    windres = tool(mingw, *names('windres'))
     env = mingw_env(mingw)
 
     (build / 'oldways.manifest').write_text(MANIFEST, encoding='utf8')
@@ -216,8 +245,8 @@ def main():
     build = Path(args.out)
     if not jre.is_dir():
         raise SystemExit(f'нет рантайма: {jre}')
-    if not (mingw / 'bin').is_dir():
-        raise SystemExit(f'нет сборочного набора MinGW: {mingw}')
+    # На Linux набора рядом нет — там кросс-компилятор стоит в системе,
+    # и tool() найдёт его в PATH. Сообщение об этом сложится там же.
     build.mkdir(parents=True, exist_ok=True)
 
     print('== лаунчер ==')
@@ -226,7 +255,9 @@ def main():
     if subprocess.run([sys.executable, str(HERE / 'build.py'),
                        '--jdk', args.jdk, '--clean']).returncode:
         return 1
-    jar = build / 'oldways-launcher.jar'
+    # build.py всегда кладёт jar рядом с собой, а не туда, куда просили нас:
+    # своего --out у него нет. Берём оттуда, где он есть на самом деле.
+    jar = HERE / 'build' / 'oldways-launcher.jar'
     if not jar.is_file():
         raise SystemExit(f'нет собранного лаунчера: {jar}')
 

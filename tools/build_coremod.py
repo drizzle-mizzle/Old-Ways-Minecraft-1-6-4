@@ -46,7 +46,14 @@ def main():
     javac = jdk / 'bin' / ('javac' + suffix)
     jar = jdk / 'bin' / ('jar' + suffix)
     if not javac.is_file():
-        raise SystemExit(f'нет JDK 8: {jdk}')
+        # Системный JDK: на Linux его ставят пакетом, и требовать при этом
+        # распакованный jdk8/ рядом с репозиторием было бы придиркой.
+        found = shutil.which('javac')
+        if not found:
+            raise SystemExit(f'нет JDK 8: ни {jdk}, ни javac в PATH')
+        jdk = Path(found).resolve().parent.parent
+        javac = jdk / 'bin' / ('javac' + suffix)
+        jar = jdk / 'bin' / ('jar' + suffix)
 
     mirror = Path(args.mirror)
     classpath = [mirror / FORGE, mirror / LAUNCHWRAPPER]

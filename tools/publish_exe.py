@@ -33,14 +33,38 @@ VERSION_FILE = ROOT / 'launcher' / 'VERSION'
 # Сервис читает версию прямо из этих файлов и отдаёт её по /api/launcher.
 DIST_LAUNCHER = ROOT / 'dist' / 'launcher'
 
-# Наборы, без которых собирать нечем: в git они не идут, поэтому проверяем
-# заранее и говорим, что именно скачать, а не роняем сборку на полпути.
-NEEDED = [
-    ('jdk8', 'Temurin 8 JDK — https://adoptium.net'),
-    ('jre8', 'Temurin 8 JRE — https://adoptium.net'),
-    ('mingw64', 'MinGW-w64 gcc (вариант msvcrt) — '
-                'https://github.com/niXman/mingw-builds-binaries'),
-]
+def missing():
+    """Чего не хватает для сборки — с подсказкой, откуда это взять.
+
+    Проверяем заранее: сказать «поставьте mingw-w64» полезнее, чем уронить
+    сборку на полпути невнятной ошибкой компоновщика. Наборы зависят от
+    системы: на Windows это распакованные рядом каталоги, на Linux —
+    кросс-компилятор и JDK из пакетов.
+    """
+    suffix = '.exe' if os.name == 'nt' else ''
+    gaps = []
+
+    if not (ROOT / 'jre8' / 'bin').is_dir():
+        gaps.append(('jre8/ — виндовая Java 8, её вкладывает в себя exe',
+                     'python3 tools/fetch_jre.py'))
+
+    home = os.environ.get('JAVA_HOME')
+    jdk_here = (ROOT / 'jdk8' / 'bin' / ('javac' + suffix)).is_file()
+    jdk_home = bool(home) and (Path(home) / 'bin' / ('javac' + suffix)).is_file()
+    if not (jdk_here or jdk_home or shutil.which('javac')):
+        gaps.append(('JDK 8 — им собирается jar',
+                     'python tools/fetch_jre.py --jdk' if os.name == 'nt'
+                     else 'sudo apt install openjdk-8-jdk-headless'))
+
+    if os.name == 'nt':
+        if not (ROOT / 'mingw64' / 'bin' / 'gcc.exe').is_file():
+            gaps.append(('mingw64/ — им собирается запускатель',
+                         'github.com/niXman/mingw-builds-binaries, '
+                         'вариант posix-seh-msvcrt'))
+    elif not shutil.which('x86_64-w64-mingw32-gcc'):
+        gaps.append(('кросс-компилятор под Windows',
+                     'sudo apt install mingw-w64'))
+    return gaps
 
 
 def read_version():
@@ -83,7 +107,7 @@ def place(source, target):
 
 def main():
     ap = argparse.ArgumentParser(description='Сборка exe с выкладкой в папку выдачи.')
-    ap.add_argument('--to', required=True, help='куда положить готовый exe')
+    ap.add_argument('--to', help='куда ещё положить exe, кроме папки отгрузки')
     ap.add_argument('--preset', type=int, default=6, help='сила сжатия LZMA, 0..9')
     ap.add_argument('--set', dest='set_version', metavar='X.Y.Z',
                     help='задать версию вместо подъёма младшей цифры')
@@ -93,15 +117,20 @@ def main():
                     help='не класть файлы в папку отгрузки (dist/launcher)')
     args = ap.parse_args()
 
-    missing = [(name, hint) for name, hint in NEEDED if not (ROOT / name).is_dir()]
-    if missing:
-        print('Не хватает наборов для сборки:')
-        for name, hint in missing:
-            print(f'  {ROOT / name} — {hint}')
+    gaps = missing()
+    if gaps:
+        print('Не хватает для сборки:')
+        for what, how in gaps:
+            print(f'  {what}')
+            print(f'      {how}')
         return 1
 
-    target_dir = Path(args.to).resolve()
-    target_dir.mkdir(parents=True, exist_ok=True)
+    # Папка отгрузки нужна всегда, а вот отдельная папка «для себя» — только
+    # если попросили: на сервере exe и так оказывается там, откуда его качают.
+    target_dir = None
+    if args.to:
+        target_dir = Path(args.to).resolve()
+        target_dir.mkdir(parents=True, exist_ok=True)
 
     previous = read_version()
     if args.keep_version:
@@ -129,7 +158,7 @@ def main():
         print(f'\nСборка прошла, но файла нет: {built}')
         return 1
 
-    target = place(built, target_dir / EXE_NAME)
+    target = place(built, target_dir / EXE_NAME) if target_dir else None
 
     # В отгрузку едут оба файла. Обычное обновление у игрока меняет только jar:
     # он весит две мегабайты против двадцати трёх, а exe — тот же запускатель
@@ -140,8 +169,9 @@ def main():
         place(ROOT / 'launcher' / 'build' / JAR_NAME, DIST_LAUNCHER / JAR_NAME)
         print(f'в отгрузке: {DIST_LAUNCHER}')
 
-    size = target.stat().st_size / 2 ** 20
-    print(f'\nвыложено: {target} ({size:.1f} МБ, версия {version}, '
+    where = target or (DIST_LAUNCHER / EXE_NAME)
+    size = where.stat().st_size / 2 ** 20
+    print(f'\nвыложено: {where} ({size:.1f} МБ, версия {version}, '
           f'{time.time() - started:.0f} с)')
     return 0
 

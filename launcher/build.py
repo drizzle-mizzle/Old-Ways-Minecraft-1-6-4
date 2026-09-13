@@ -49,7 +49,13 @@ def find_jdk(explicit):
         javac = path / 'bin' / ('javac.exe' if os.name == 'nt' else 'javac')
         if javac.is_file():
             return path
-    raise SystemExit('не нашёл JDK 8: положите его в jdk8/ или укажите --jdk')
+    # Последняя попытка — системный JDK: на Linux его ставят пакетом, и
+    # требовать при этом ещё и JAVA_HOME было бы придиркой.
+    found = shutil.which('javac')
+    if found:
+        return Path(found).resolve().parent.parent
+    raise SystemExit('не нашёл JDK 8: поставьте его в систему, положите в jdk8/ '
+                     'или укажите --jdk')
 
 
 def main():
