@@ -24,6 +24,7 @@ serverId — непрозрачная для нас строка, которую
 
 from __future__ import annotations
 
+import hashlib
 import os
 import secrets
 import sqlite3
@@ -37,6 +38,7 @@ from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request, Re
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
+import binver
 import rcon
 
 DB_PATH = Path(os.environ.get('OW_DB', '/data/auth.sqlite3'))
@@ -51,6 +53,11 @@ MAX_SKIN_BYTES = 512 * 1024
 # на каждого игрока в поле зрения, а разницы на экране не видно.
 TEXTURE_SIZES = [(64 * k, 32 * k) for k in (1, 2, 4, 8, 16)]
 DIST_DIR = Path(os.environ.get('OW_DIST', '/data/dist'))
+# Лаунчер лежит в той же папке отгрузки, откуда берётся сборка игры: одно
+# место на всё, что уезжает к игроку. Имена внутри — как у файлов на диске,
+# наружу они смотрят ролями (exe/jar), чтобы ссылка не зависела от названия.
+LAUNCHER_DIR = Path(os.environ.get('OW_LAUNCHER_DIR', str(DIST_DIR / 'launcher')))
+LAUNCHER_FILES = {'exe': 'Old Ways.exe', 'jar': 'oldways-launcher.jar'}
 # Общий скин: его получают все, кто не загрузил свой.
 DEFAULT_SKIN = Path(os.environ.get('OW_DEFAULT_SKIN', '/opt/auth/default_skin.png'))
 
@@ -435,6 +442,67 @@ def dist_file(path: str):
     if root not in target.parents or not target.is_file():
         raise HTTPException(404, 'нет файла')
     return FileResponse(target, media_type='application/octet-stream')
+
+
+# --- обновление лаунчера ----------------------------------------------------
+# Версию не держим отдельной записью: она читается из самого выложенного файла
+# (jar — из манифеста, exe — из ресурса Windows). Файл о себе не соврёт, а вот
+# забытый version.json разъехался бы с выкладкой на первой же спешке.
+
+_launcher_cache: dict[str, tuple] = {}
+
+
+def launcher_part(kind: str):
+    """Описание выложенного файла или None, если его там нет."""
+    path = LAUNCHER_DIR / LAUNCHER_FILES[kind]
+    try:
+        stat = path.stat()
+    except OSError:
+        _launcher_cache.pop(kind, None)
+        return None
+
+    mark = (stat.st_mtime_ns, stat.st_size)
+    cached = _launcher_cache.get(kind)
+    if cached and cached[0] == mark:
+        return cached[1]
+
+    # Считаем один раз на выкладку: sha256 от 23 МБ на каждый запрос —
+    # это секунда процессорного времени за просто так.
+    digest = hashlib.sha256()
+    with path.open('rb') as stream:
+        for chunk in iter(lambda: stream.read(1 << 20), b''):
+            digest.update(chunk)
+    version = binver.exe_version(path) if kind == 'exe' else binver.jar_version(path)
+    part = {'version': version, 'size': stat.st_size,
+            'sha256': digest.hexdigest(), 'url': f'/dist/launcher/{kind}'}
+    _launcher_cache[kind] = (mark, part)
+    return part
+
+
+@app.get('/api/launcher')
+def api_launcher():
+    """Что сейчас выложено: версия, размер и контрольная сумма каждого файла.
+
+    Лаунчер сравнивает свою версию с версией jar — обычное обновление меняет
+    только его. Версия exe нужна реже: запускатель и вложенная Java меняются
+    редко, и замена exe — отдельная история с перезапуском.
+    """
+    parts = {kind: launcher_part(kind) for kind in LAUNCHER_FILES}
+    parts = {kind: part for kind, part in parts.items() if part}
+    if 'jar' not in parts or not parts['jar']['version']:
+        raise HTTPException(503, 'лаунчер не выложен')
+    return {'version': parts['jar']['version'], **parts}
+
+
+@app.get('/dist/launcher/{kind}')
+def dist_launcher(kind: str):
+    name = LAUNCHER_FILES.get(kind)
+    if not name:
+        raise HTTPException(404, 'нет такого файла')
+    path = LAUNCHER_DIR / name
+    if not path.is_file():
+        raise HTTPException(404, 'нет файла')
+    return FileResponse(path, media_type='application/octet-stream', filename=name)
 
 
 @app.get('/healthz')

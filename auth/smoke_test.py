@@ -9,6 +9,7 @@
 """
 
 import argparse
+import hashlib
 import json
 import struct
 import sys
@@ -196,6 +197,33 @@ def main():
         status, _ = call('DELETE', f'{base}/api/skin', headers={'X-Session': restore})
         check('тестовый скин убран', status == 200, f'HTTP {status}')
     call('DELETE', f'{base}/api/session', headers={'X-Session': restore})
+
+    # --- обновление лаунчера -------------------------------------------------
+    # Версия читается из выложенных файлов, поэтому проверять её значение
+    # бессмысленно — проверяем, что ответ связный и файл действительно отдаётся.
+    status, body = call('GET', f'{base}/api/launcher')
+    if status == 503:
+        check('лаунчер не выложен — сервис честно говорит 503', True,
+              'dist/launcher пуст, остальные проверки пропущены')
+    else:
+        check('сведения о лаунчере отданы', status == 200, f'HTTP {status} {body}')
+        info = json.loads(body) if status == 200 else {}
+        jar = info.get('jar', {})
+        check('версия в ответе совпадает с версией jar',
+              bool(jar.get('version')) and info.get('version') == jar.get('version'),
+              repr(info.get('version')))
+        check('у файла есть размер и сумма',
+              jar.get('size', 0) > 0 and len(jar.get('sha256', '')) == 64,
+              repr(jar))
+
+        status, blob = call('GET', f'{base}{jar.get("url", "")}', raw=True)
+        check('jar скачивается', status == 200 and len(blob) == jar.get('size'),
+              f'HTTP {status}, {len(blob)} байт')
+        check('сумма скачанного сходится',
+              hashlib.sha256(blob).hexdigest() == jar.get('sha256'))
+
+    status, _ = call('GET', f'{base}/dist/launcher/passwd')
+    check('чужое имя файла не отдаётся', status == 404, f'HTTP {status}')
 
     print(f'\nитог: пройдено {len(PASSED)}, провалено {len(FAILED)}')
     if FAILED:

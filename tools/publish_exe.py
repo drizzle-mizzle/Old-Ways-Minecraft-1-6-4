@@ -27,7 +27,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 EXE_NAME = 'Old Ways.exe'
+JAR_NAME = 'oldways-launcher.jar'
 VERSION_FILE = ROOT / 'launcher' / 'VERSION'
+# Папка отгрузки: отсюда лаунчер тянет и сборку игры, и самого себя.
+# Сервис читает версию прямо из этих файлов и отдаёт её по /api/launcher.
+DIST_LAUNCHER = ROOT / 'dist' / 'launcher'
 
 # Наборы, без которых собирать нечем: в git они не идут, поэтому проверяем
 # заранее и говорим, что именно скачать, а не роняем сборку на полпути.
@@ -65,6 +69,18 @@ def check_version(value):
     return value
 
 
+def place(source, target):
+    """Положить файл на место через временное имя.
+
+    Если копирование оборвётся, у игроков останется прежний рабочий файл,
+    а не обрезанный: os.replace на одном томе меняет имя одним действием.
+    """
+    temporary = target.with_name(target.name + '.new')
+    shutil.copy2(source, temporary)
+    os.replace(temporary, target)
+    return target
+
+
 def main():
     ap = argparse.ArgumentParser(description='Сборка exe с выкладкой в папку выдачи.')
     ap.add_argument('--to', required=True, help='куда положить готовый exe')
@@ -73,6 +89,8 @@ def main():
                     help='задать версию вместо подъёма младшей цифры')
     ap.add_argument('--keep-version', action='store_true',
                     help='пересобрать с той же версией (перевыкладка того же)')
+    ap.add_argument('--no-dist', action='store_true',
+                    help='не класть файлы в папку отгрузки (dist/launcher)')
     args = ap.parse_args()
 
     missing = [(name, hint) for name, hint in NEEDED if not (ROOT / name).is_dir()]
@@ -111,12 +129,16 @@ def main():
         print(f'\nСборка прошла, но файла нет: {built}')
         return 1
 
-    # Кладём через временное имя: если копирование оборвётся, у игроков
-    # останется прежний рабочий exe, а не обрезанный.
-    target = target_dir / EXE_NAME
-    temporary = target_dir / (EXE_NAME + '.new')
-    shutil.copy2(built, temporary)
-    os.replace(temporary, target)
+    target = place(built, target_dir / EXE_NAME)
+
+    # В отгрузку едут оба файла. Обычное обновление у игрока меняет только jar:
+    # он весит две мегабайты против двадцати трёх, а exe — тот же запускатель
+    # с той же Java внутри, менять его есть смысл, только когда меняются они.
+    if not args.no_dist:
+        DIST_LAUNCHER.mkdir(parents=True, exist_ok=True)
+        place(built, DIST_LAUNCHER / EXE_NAME)
+        place(ROOT / 'launcher' / 'build' / JAR_NAME, DIST_LAUNCHER / JAR_NAME)
+        print(f'в отгрузке: {DIST_LAUNCHER}')
 
     size = target.stat().st_size / 2 ** 20
     print(f'\nвыложено: {target} ({size:.1f} МБ, версия {version}, '

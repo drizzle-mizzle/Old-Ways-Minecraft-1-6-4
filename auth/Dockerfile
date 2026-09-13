@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
  && useradd --system --uid 2001 --home-dir /data auth \
  && mkdir -p /data && chown auth:auth /data
 
-COPY --chown=auth:auth app.py rcon.py ./
+COPY --chown=auth:auth app.py rcon.py binver.py ./
 COPY --chown=auth:auth default_skin.png /opt/auth/default_skin.png
 
 USER auth
