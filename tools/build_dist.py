@@ -290,8 +290,8 @@ def main():
     # лаунчеру нечем — сказать об этом лучше сразу, чем оставить выяснять.
     if not (out / 'launcher').is_dir():
         print(f'\nв {out / "launcher"} пусто — самому лаунчеру обновляться не с чего.')
-        print('Собрать и положить его туда: tools/publish_exe.py на Windows, '
-              'потом scp каталога dist/launcher (шаг 9 в docs/deploy.md).')
+        print('Собрать и положить его туда: python3 tools/publish_exe.py '
+              '(шаг 9 в docs/deploy.md).')
     return 0
 
 
