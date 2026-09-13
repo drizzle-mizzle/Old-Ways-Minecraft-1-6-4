@@ -246,7 +246,7 @@ town:
  
   # The maximum townblocks available to a town is (numResidents * ratio).
   # Setting this value to 0 will instead use the level based jump values determined in the town level config.
-  town_block_ratio: '8'
+  town_block_ratio: '0'
   # The size of the square grid cell. Changing this value is suggested only when you first install Towny.
   # Doing so after entering data will shift things unwantedly. Using smaller value will allow higher precision,
   # at the cost of more work setting up. Also, extremely small values will render the caching done useless.
