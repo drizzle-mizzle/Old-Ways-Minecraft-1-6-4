@@ -33,9 +33,11 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import bcrypt
-from fastapi import FastAPI, Header, HTTPException, Request, Response
+from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel, Field
+
+import rcon
 
 DB_PATH = Path(os.environ.get('OW_DB', '/data/auth.sqlite3'))
 SKIN_DIR = Path(os.environ.get('OW_SKINS', '/data/skins'))
@@ -55,6 +57,10 @@ DEFAULT_SKIN = Path(os.environ.get('OW_DEFAULT_SKIN', '/opt/auth/default_skin.pn
 # Причина отзыва, которую лаунчер показывает игроку как есть
 EVICTED = 'в аккаунт вошли с другого устройства'
 PASSWORD_CHANGED = 'пароль изменён'
+# Та же причина, но для игрока в мире: он видит её экраном отключения,
+# где обращение на «вы» уместнее протокольной формулировки.
+KICK_EVICTED = 'Вы вошли с другого устройства'
+KICK_PASSWORD_CHANGED = 'Пароль изменён, войдите заново'
 
 SEED_USER = os.environ.get('OW_ADMIN_USER', 'flower')
 SEED_PASSWORD = os.environ.get('OW_ADMIN_PASSWORD', 'flower')
@@ -192,7 +198,7 @@ class LoginResponse(BaseModel):
 
 
 @app.post('/api/login', response_model=LoginResponse)
-def api_login(body: LoginRequest):
+def api_login(body: LoginRequest, tasks: BackgroundTasks):
     with db() as conn:
         user = find_user(conn, body.username)
         if not user or not bcrypt.checkpw(body.password.encode(), user['password_hash']):
@@ -205,9 +211,14 @@ def api_login(body: LoginRequest):
         # На аккаунт — один живой пропуск: новый вход выбивает прежний.
         # Пропуск не удаляем, а помечаем: по метке прежний лаунчер узнает,
         # что случилось, и скажет игроку правду вместо «сессия истекла».
-        conn.execute('UPDATE sessions SET revoked_at = ?, revoked_reason = ? '
-                     'WHERE user_id = ? AND revoked_at IS NULL',
-                     (now(), EVICTED, user['id']))
+        evicted = conn.execute('UPDATE sessions SET revoked_at = ?, revoked_reason = ? '
+                               'WHERE user_id = ? AND revoked_at IS NULL',
+                               (now(), EVICTED, user['id'])).rowcount
+        # Прежний игрок мог уже войти в мир — там гашение пропуска его не трогает:
+        # ядро 1.6.4 спрашивает нас только в момент входа. Выбиваем через консоль,
+        # и только если действительно было кого выбивать.
+        if evicted:
+            tasks.add_task(rcon.kick, user['username'], KICK_EVICTED)
         conn.execute('INSERT INTO sessions (token, user_id, created_at, expires_at) '
                      'VALUES (?, ?, ?, ?)', (token, user['id'], now(), expires))
 
@@ -252,7 +263,7 @@ class PasswordChange(BaseModel):
 
 
 @app.post('/api/password')
-def api_password(body: PasswordChange, x_session: str = Header(...)):
+def api_password(body: PasswordChange, tasks: BackgroundTasks, x_session: str = Header(...)):
     with db() as conn:
         user = user_by_session(conn, x_session)
         if not user:
@@ -263,9 +274,11 @@ def api_password(body: PasswordChange, x_session: str = Header(...)):
                      (bcrypt.hashpw(body.new_password.encode(), bcrypt.gensalt()), user['id']))
         # Пропуска не удаляем, а гасим с причиной: лаунчеру на другой машине
         # есть что сказать игроку, кроме «сессия недействительна».
-        conn.execute('UPDATE sessions SET revoked_at = ?, revoked_reason = ? '
-                     'WHERE user_id = ? AND revoked_at IS NULL',
-                     (now(), PASSWORD_CHANGED, user['id']))
+        revoked = conn.execute('UPDATE sessions SET revoked_at = ?, revoked_reason = ? '
+                               'WHERE user_id = ? AND revoked_at IS NULL',
+                               (now(), PASSWORD_CHANGED, user['id'])).rowcount
+        if revoked:
+            tasks.add_task(rcon.kick, user['username'], KICK_PASSWORD_CHANGED)
     return {'ok': True, 'note': 'все сессии завершены, войдите заново'}
 
 

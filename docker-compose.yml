@@ -20,6 +20,11 @@ services:
       JAVA_XMX: "4G"
       # Towny считает «новый день» по времени контейнера — ставьте свою зону
       TZ: "Europe/Moscow"
+      # Консоль для сервиса авторизации: ею он выбивает из мира игрока,
+      # чей пропуск только что погас. Пароль берётся из .env рядом с этим
+      # файлом; пустой — RCON не поднимется вовсе.
+      OW_RCON_PASSWORD: "${OW_RCON_PASSWORD:-}"
+      OW_RCON_PORT: "${OW_RCON_PORT:-25575}"
 
     # Ядру 1.6.4 нужно время на сохранение миров по SIGTERM.
     # Если docker убьёт его раньше, можно потерять последние чанки.
@@ -62,6 +67,11 @@ services:
       OW_ADMIN_USER: "flower"
       # OW_ADMIN_PASSWORD: "..."
       TZ: "Europe/Moscow"
+      # Та же пара, что у сервера: хост — имя сервиса в сети compose.
+      # Порт 25575 нигде не публикуется, снаружи до него не дотянуться.
+      OW_RCON_HOST: "minecraft"
+      OW_RCON_PORT: "${OW_RCON_PORT:-25575}"
+      OW_RCON_PASSWORD: "${OW_RCON_PASSWORD:-}"
 
     logging:
       driver: json-file

@@ -48,3 +48,6 @@ plugins/**/*.db
 # Python
 __pycache__/
 *.pyc
+
+# Секреты развёртывания (пароль RCON и прочее) — рядом лежит .env.example
+.env

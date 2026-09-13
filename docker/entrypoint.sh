@@ -29,6 +29,31 @@ cp -f "$SKEL"/plugins/*.jar "$DATA/plugins/" 2>/dev/null || true
 cp -f "$SKEL"/plugins/Heroes/skills/*.jar "$DATA/plugins/Heroes/skills/" 2>/dev/null || true
 log "плагинов: $(count "$DATA/plugins/*.jar"), скиллов Heroes: $(count "$DATA/plugins/Heroes/skills/*.jar")"
 
+# --- RCON: канал для сервиса авторизации --------------------------------------
+# Сервис гасит пропуск мгновенно, но игрока, который уже в мире, выбить может
+# только командой в консоль. Ключи приводим к состоянию окружения на каждом
+# старте: том переживает пересборку образа, и разъехавшийся server.properties
+# нашли бы не сразу. Правим перезаписью строки, а не sed'ом, — в пароле может
+# оказаться что угодно, включая символы, которые sed сочтёт своими.
+setprop() {
+  local key=$1 value=$2 tmp="$DATA/.server.properties.tmp"
+  grep -v "^$key=" "$DATA/server.properties" > "$tmp" || true
+  printf '%s=%s
+' "$key" "$value" >> "$tmp"
+  mv "$tmp" "$DATA/server.properties"
+}
+
+RCON_PORT="${OW_RCON_PORT:-25575}"
+if [ -n "${OW_RCON_PASSWORD:-}" ]; then
+  setprop enable-rcon true
+  setprop rcon.port "$RCON_PORT"
+  setprop rcon.password "$OW_RCON_PASSWORD"
+  log "RCON включён на порту $RCON_PORT (только внутри сети compose)"
+else
+  setprop enable-rcon false
+  log "OW_RCON_PASSWORD не задан — RCON выключен, игроков из мира не выбить"
+fi
+
 # --- канал в консоль сервера --------------------------------------------------
 # Без открытого stdin консольный поток CraftBukkit читает EOF в цикле и жжёт ядро.
 # FIFO решает это и заодно даёт способ слать команды: docker exec <c> mc "say привет"
