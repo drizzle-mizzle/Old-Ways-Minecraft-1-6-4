@@ -21,6 +21,12 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 MAIN_CLASS = 'oldways.launcher.Main'
 JAR_NAME = 'oldways-launcher.jar'
+VERSION_FILE = HERE / 'VERSION'
+
+
+def version():
+    """Единственное место, где живёт номер версии."""
+    return VERSION_FILE.read_text(encoding='utf8').strip()
 
 
 def find_jdk(explicit):
@@ -73,10 +79,25 @@ def main():
     if resources.is_dir():
         shutil.copytree(resources, classes, dirs_exist_ok=True)
 
+    # Версия попадает в jar дважды, и оба раза нужны. Ресурсом — её читает сам
+    # лаунчер (Version.CURRENT) и на запуске из каталога классов, и из jar.
+    # В манифесте — её читает сервис обновлений, которому разбирать class-файлы
+    # ради одной строки было бы странно.
+    ver = version()
+    resource = classes / 'oldways' / 'launcher' / 'VERSION'
+    resource.parent.mkdir(parents=True, exist_ok=True)
+    resource.write_text(ver + '\n', encoding='utf8', newline='\n')
+    manifest = build / 'MANIFEST.MF'
+    manifest.write_text(
+        'Manifest-Version: 1.0\n'
+        f'Main-Class: {MAIN_CLASS}\n'
+        'Implementation-Title: Old Ways Launcher\n'
+        f'Implementation-Version: {ver}\n', encoding='utf8', newline='\n')
+
     target = build / JAR_NAME
-    subprocess.run([str(jar), 'cfe', str(target), MAIN_CLASS, '-C', str(classes), '.'],
+    subprocess.run([str(jar), 'cfm', str(target), str(manifest), '-C', str(classes), '.'],
                    check=True)
-    print(f'готово: {target} ({target.stat().st_size / 1024:.0f} КБ)')
+    print(f'готово: {target} ({target.stat().st_size / 1024:.0f} КБ), версия {ver}')
 
     if args.run:
         rest = args.rest[1:] if args.rest[:1] == ['--'] else args.rest

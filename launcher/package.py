@@ -23,7 +23,6 @@
 import argparse
 import lzma
 import os
-import re
 import shutil
 import struct
 import subprocess
@@ -116,9 +115,8 @@ def tool(root, *names):
 
 
 def launcher_version():
-    text = (HERE / 'src/oldways/launcher/Main.java').read_text(encoding='utf8')
-    found = re.search(r'VERSION\s*=\s*"([^"]+)"', text)
-    return found.group(1) if found else '0'
+    """Тот же файл, что читает сборка jar: номер версии живёт в одном месте."""
+    return (HERE / 'VERSION').read_text(encoding='utf8').strip()
 
 
 def stage_runtime(jre, staging):

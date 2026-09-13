@@ -13,15 +13,13 @@ import java.util.Map;
  */
 public final class Main {
 
-    static final String VERSION = "0.2";
-
     public static void main(String[] args) {
         Map<String, String> options = parse(args);
         File root = options.containsKey("home")
                 ? new File(options.get("home")) : Config.defaultRoot();
         Config cfg = new Config(root);
         Log.toFile(cfg.logFile());
-        Log.info("Old Ways лаунчер %s, каталог %s", VERSION, root);
+        Log.info("Old Ways лаунчер %s, каталог %s", Version.CURRENT, root);
         Log.info("система %s, java %s", Util.OS, System.getProperty("java.version"));
 
         if (options.containsKey("cli")) {
