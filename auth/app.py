@@ -69,8 +69,10 @@ PASSWORD_CHANGED = 'пароль изменён'
 KICK_EVICTED = 'Вы вошли с другого устройства'
 KICK_PASSWORD_CHANGED = 'Пароль изменён, войдите заново'
 
-SEED_USER = os.environ.get('OW_ADMIN_USER', 'flower')
-SEED_PASSWORD = os.environ.get('OW_ADMIN_PASSWORD', 'flower')
+# Пустая переменная — это «не задано», а не «пустой пароль»: в compose
+# незаполненный ключ из .env приходит именно пустой строкой.
+SEED_USER = os.environ.get('OW_ADMIN_USER') or 'flower'
+SEED_PASSWORD = os.environ.get('OW_ADMIN_PASSWORD') or 'flower'
 
 app = FastAPI(title='Old Ways Auth', version='0.1.0')
 
