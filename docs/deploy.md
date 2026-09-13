@@ -81,6 +81,10 @@ git clone git@github.com:drizzle-mizzle/Old-Ways-Minecraft-1-6-4.git ~/old-ways
 cd ~/old-ways
 ```
 
+Дальше все команды сервера выполняются из этого каталога. Имя каталога
+попадает в имена томов (`old-ways_mcdata`), так что если клонируете под другим
+именем — держите это в уме в разделе про бэкапы.
+
 ## Шаг 4. Секреты
 
 ```bash
@@ -108,7 +112,8 @@ python3 tools/fetch_forge.py
 Моды перенесите со своей машины — команда выполняется **на ней**, в PowerShell:
 
 ```powershell
-scp -r "C:/Users/flower/Desktop/Server/mirror/mods" oldways@ВАШ_IP:~/old-ways/mirror/
+cd C:/Users/flower/Desktop/Server
+scp -r mirror/mods oldways@ВАШ_IP:~/old-ways/mirror/
 ```
 
 На сервере в `mirror/mods` должно оказаться три файла: `OptiFine_1.6.4_HD_U_D1.jar`,
@@ -180,10 +185,16 @@ docker compose logs -f minecraft
 запуске, так что игроку не придётся ничего вводить руками:
 
 ```powershell
+cd C:/Users/flower/Desktop/Server
 "ВАШ_IP" | Out-File -Encoding ascii launcher/ADDRESS
 python tools/publish_exe.py --to "C:/Users/flower/Desktop/OldWaysPublish"
-scp -r "C:/Users/flower/Desktop/Server/dist/launcher" oldways@ВАШ_IP:~/old-ways/dist/
+scp -r dist/launcher oldways@ВАШ_IP:~/old-ways/dist/
 ```
+
+Первая строка нужна: пути дальше относительные, а `-Encoding ascii` — чтобы
+PowerShell не записал адрес в UTF-16 с меткой порядка байтов. Вместо команды
+можно просто открыть `launcher/ADDRESS` в блокноте и заменить `localhost`
+на свой адрес.
 
 Сборка печатает, что получилось: `версия 0.3.2, адрес по умолчанию ВАШ_IP`.
 Это именно **значение по умолчанию** — у тех, кто уже запускал лаунчер, адрес
