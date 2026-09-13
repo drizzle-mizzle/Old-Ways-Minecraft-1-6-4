@@ -156,9 +156,25 @@ def build_blob(staging):
     return b''.join(parts)
 
 
+def mingw_env(mingw):
+    """Окружение, в котором gcc находит свои же библиотеки.
+
+    windres запускает препроцессор (cc1.exe), а тот лежит не в bin и ищет
+    libwinpthread-1.dll по PATH. Если в оболочке нет mingw64\bin, сборка
+    падает окном «не удаётся продолжить выполнение кода» — и по сообщению
+    windres («preprocessing failed») догадаться об этом невозможно.
+    Поэтому путь добавляем сами, а не полагаемся на то, как настроена
+    оболочка: в Git Bash свой mingw в PATH есть, в PowerShell — нет.
+    """
+    env = dict(os.environ)
+    env['PATH'] = str(Path(mingw) / 'bin') + os.pathsep + env.get('PATH', '')
+    return env
+
+
 def compile_stub(mingw, build, version, exe_name):
     gcc = tool(mingw, 'gcc.exe')
     windres = tool(mingw, 'windres.exe')
+    env = mingw_env(mingw)
 
     (build / 'oldways.manifest').write_text(MANIFEST, encoding='utf8')
     ver_comma = ','.join((version.replace('-', '.').split('.') + ['0', '0', '0'])[:4])
@@ -168,7 +184,8 @@ def compile_stub(mingw, build, version, exe_name):
         ver_comma=ver_comma, ver=version, exe=exe_name), encoding='utf8')
 
     subprocess.run([str(windres), str(build / 'oldways.rc'),
-                    '-O', 'coff', '-o', str(build / 'oldways.res')], check=True)
+                    '-O', 'coff', '-o', str(build / 'oldways.res')],
+                   check=True, env=env)
 
     stub = build / 'stub.exe'
     subprocess.run([
@@ -181,7 +198,7 @@ def compile_stub(mingw, build, version, exe_name):
         str(HERE / 'stub/oldways.c'), str(HERE / 'stub/LzmaDec.c'),
         str(build / 'oldways.res'), '-o', str(stub),
         '-lgdi32', '-luser32', '-lkernel32',
-    ], check=True)
+    ], check=True, env=env)
     return stub
 
 
