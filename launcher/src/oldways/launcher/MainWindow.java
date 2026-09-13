@@ -441,6 +441,7 @@ final class MainWindow {
         showSession(null);
         restoreSession();
         watchSession();
+        checkUpdate();
         frame.setResizable(false);
         frame.pack();
         frame.setLocationRelativeTo(null);
@@ -832,6 +833,32 @@ final class MainWindow {
      * Раз в полминуты: чаще незачем, а реже — игрок успеет забыть, что делал
      * на второй машине.
      */
+    /**
+     * Обновление лаунчера: спросить сервис и, если там новее, скачать.
+     *
+     * Молча: игроку показывается только успех, и то одной строкой. Сети может
+     * не быть, сервис может быть старым — ни то ни другое не повод мешать
+     * человеку играть, поэтому любая ошибка уходит в журнал.
+     */
+    private void checkUpdate() {
+        Updater.forgetBackup();
+        Thread thread = new Thread(new Runnable() {
+            public void run() {
+                try {
+                    String base = Address.parse(addressField.getText().trim()).base();
+                    final String version = Updater.prepare(base);
+                    if (version != null) {
+                        say("Обновление " + version + " применится при следующем запуске");
+                    }
+                } catch (Exception error) {
+                    Log.info("обновление не проверено: %s", error);
+                }
+            }
+        }, "update-check");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
     private void watchSession() {
         Timer watch = new Timer(30000, new ActionListener() {
             public void actionPerformed(ActionEvent e) {

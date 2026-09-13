@@ -23,7 +23,20 @@ final class Util {
     }
 
     static String sha1(File file) throws IOException {
-        MessageDigest md = digest();
+        return hash(file, "SHA-1");
+    }
+
+    /** Сумма обновления считается по SHA-256: раздаче сборки хватает SHA-1. */
+    static String sha256(File file) throws IOException {
+        return hash(file, "SHA-256");
+    }
+
+    static String sha1(byte[] data) {
+        return hex(digest("SHA-1").digest(data));
+    }
+
+    private static String hash(File file, String algorithm) throws IOException {
+        MessageDigest md = digest(algorithm);
         byte[] buffer = new byte[1 << 16];
         InputStream in = new FileInputStream(file);
         try {
@@ -35,15 +48,11 @@ final class Util {
         return hex(md.digest());
     }
 
-    static String sha1(byte[] data) {
-        return hex(digest().digest(data));
-    }
-
-    private static MessageDigest digest() {
+    private static MessageDigest digest(String algorithm) {
         try {
-            return MessageDigest.getInstance("SHA-1");
+            return MessageDigest.getInstance(algorithm);
         } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("в этой JVM нет SHA-1", e);
+            throw new IllegalStateException("в этой JVM нет " + algorithm, e);
         }
     }
 

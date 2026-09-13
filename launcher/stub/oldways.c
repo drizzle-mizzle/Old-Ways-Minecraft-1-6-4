@@ -497,6 +497,64 @@ static const wchar_t *own_arguments(void)
     return line;
 }
 
+/* ----------------------------------------------------- обновление лаунчера */
+/*
+ * Лаунчер обновляет себя не сам: он только кладёт рядом oldways-launcher.new.jar,
+ * а подменяет запускатель — здесь, до старта Java. В этот момент файл никем
+ * не занят, и не нужны ни bat-файлы, которые удаляют сами себя (антивирусы
+ * их не любят), ни пляски вокруг занятого файла.
+ *
+ * Прежний jar остаётся рядом как .bak: если новая версия не поднимется,
+ * запускатель вернёт его и запустит ещё раз.
+ */
+
+static void update_paths(const wchar_t *base, wchar_t *fresh, wchar_t *jar, wchar_t *backup)
+{
+    join(fresh, MAX_PATH * 2, base, L"oldways-launcher.new.jar");
+    join(jar, MAX_PATH * 2, base, L"oldways-launcher.jar");
+    join(backup, MAX_PATH * 2, base, L"oldways-launcher.bak.jar");
+}
+
+static int apply_update(const wchar_t *base)
+{
+    wchar_t fresh[MAX_PATH * 2], jar[MAX_PATH * 2], backup[MAX_PATH * 2];
+    update_paths(base, fresh, jar, backup);
+    if (!exists(fresh)) return 0;
+
+    DeleteFileW(backup);
+    if (exists(jar) && !MoveFileW(jar, backup)) return 0;
+    if (!MoveFileW(fresh, jar))
+    {
+        MoveFileW(backup, jar);
+        DeleteFileW(fresh);
+        return 0;
+    }
+    return 1;
+}
+
+static int restore_backup(const wchar_t *base)
+{
+    wchar_t fresh[MAX_PATH * 2], jar[MAX_PATH * 2], backup[MAX_PATH * 2];
+    update_paths(base, fresh, jar, backup);
+    if (!exists(backup)) return 0;
+    DeleteFileW(jar);
+    return MoveFileW(backup, jar) != 0;
+}
+
+/*
+ * Поднялся ли лаунчер. Ждём недолго и только после обновления: обычный запуск
+ * ничего не ждёт, как и раньше. Работает дольше срока — значит живой; вышел
+ * сам с нулём — значит отработал; ненулевой код за эти секунды — поломка,
+ * и тогда есть смысл вернуть прежнюю версию.
+ */
+static int launcher_alive(HANDLE process)
+{
+    DWORD code = 0;
+    if (WaitForSingleObject(process, 15000) == WAIT_TIMEOUT) return 1;
+    if (!GetExitCodeProcess(process, &code)) return 1;
+    return code == 0;
+}
+
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int show)
 {
     (void)instance; (void)previous; (void)command; (void)show;
@@ -514,6 +572,9 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
 
     if (!already_unpacked(base, &load))
         unpack(self, base, &load);
+
+    /* Обновление, скачанное прошлым запуском: подменяем jar, пока он свободен. */
+    int updated = apply_update(base);
 
     wchar_t java[MAX_PATH * 2];
     join(java, MAX_PATH * 2, base, L"runtime\\bin\\javaw.exe");
@@ -537,6 +598,18 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
     if (!CreateProcessW(NULL, line, NULL, NULL, FALSE, 0, NULL, base, &startup, &process))
         fail(L"Не удалось запустить лаунчер.");
     CloseHandle(process.hThread);
+
+    if (updated && !launcher_alive(process.hProcess) && restore_backup(base))
+    {
+        CloseHandle(process.hProcess);
+        if (!CreateProcessW(NULL, line, NULL, NULL, FALSE, 0, NULL, base, &startup, &process))
+            fail(L"Не удалось запустить лаунчер.");
+        CloseHandle(process.hThread);
+        /* Сначала поднимаем прежнюю версию, потом объясняем: окно с сообщением
+           модальное, и до нажатия «ОК» лаунчер бы не появился. */
+        MessageBoxW(NULL, L"Обновление не запустилось — вернул прежнюю версию.",
+                    APP_NAME, MB_ICONWARNING | MB_OK);
+    }
     CloseHandle(process.hProcess);
     return 0;
 }

@@ -48,7 +48,7 @@ def read_version():
 
 
 def write_version(value):
-    VERSION_FILE.write_text(value + '\n', encoding='utf8')
+    VERSION_FILE.write_text(value + '\n', encoding='utf8', newline='\n')
 
 
 def next_version(current):
