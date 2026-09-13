@@ -41,7 +41,10 @@ plugins/Towny/logs/
 plugins/Heroes/players/
 plugins/Heroes/storage/
 plugins/Essentials/userdata/
-plugins/PluginMetrics/
+# Звёздочка, а не каталог: исключённую папку обратно не вернуть,
+# а её содержимое — можно, и общая настройка метрик едет в релиз.
+plugins/PluginMetrics/*
+!plugins/PluginMetrics/config.yml
 plugins/**/*.db
 *~
 

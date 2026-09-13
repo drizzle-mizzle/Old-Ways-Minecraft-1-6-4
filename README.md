@@ -45,7 +45,7 @@ Java 8 в папке `jre8/`; в репозиторий она не попада
 | Города | Towny 0.88.0.0, TownyChat, Questioner |
 | RPG | Heroes 1.5.5, 67 навыков, 6 классов |
 | Права и экономика | zPermissions, Vault, Essentials |
-| Остальное | WorldEdit, WorldGuard, NoCheatPlus, Chairs, MobHealthDisplay |
+| Остальное | WorldEdit, WorldGuard, NoCheatPlus, Chairs, MobHealthDisplay, CraftBook |
 
 **Версии плагинов не обновлять.** Каждая подобрана под API 1.6.x; следующие
 сборки этих же плагинов собраны под 1.7 и на 1.6.4 не запускаются.

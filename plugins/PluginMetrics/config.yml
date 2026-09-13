@@ -1,0 +1,5 @@
+# Общая настройка PluginMetrics: её читают все плагины, которые шлют
+# анонимную статистику (Towny, Heroes, NoCheatPlus, CraftBook).
+# Приватному серверу звонить наружу незачем, поэтому выключено.
+opt-out: true
+debug: false
