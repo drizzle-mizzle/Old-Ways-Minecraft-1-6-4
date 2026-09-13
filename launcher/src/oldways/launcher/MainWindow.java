@@ -163,7 +163,7 @@ final class MainWindow {
         memory = new MemorySlider(512, 4096, 512, cfg.getInt("memory", 2048), k);
         memoryLabel = label("Выделенная память: " + memory.text(), 14);
         addressLabel = label("Адрес сервера", 14);
-        addressField = Fields.text(k, "localhost");
+        addressField = Fields.text(k, Defaults.ADDRESS);
         autoConnect = new Check("Подключаться к серверу сразу",
                 !"false".equals(cfg.get("autoconnect", "true")), k);
         themeLabel = label("Тема оформления", 14);
@@ -328,7 +328,7 @@ final class MainWindow {
         root.add(logo);
         root.add(loginBox);
 
-        addressField.setText(cfg.get("address", "localhost"));
+        addressField.setText(cfg.get("address", Defaults.ADDRESS));
         userField.setText(cfg.get("username", ""));
         themeChoice.select(cfg.get("theme", "night"));
         widthField.setText(cfg.get("game.width", ""));
@@ -712,7 +712,7 @@ final class MainWindow {
     }
 
     private void saveSettings() {
-        String previous = cfg.get("address", "localhost");
+        String previous = cfg.get("address", Defaults.ADDRESS);
         String now = addressField.getText().trim();
         if (session != null && !previous.equals(now)) {
             // сеанс выдан прежним сервером и на новом не действует

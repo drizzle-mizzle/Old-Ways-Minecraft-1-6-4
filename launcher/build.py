@@ -22,11 +22,20 @@ ROOT = HERE.parent
 MAIN_CLASS = 'oldways.launcher.Main'
 JAR_NAME = 'oldways-launcher.jar'
 VERSION_FILE = HERE / 'VERSION'
+ADDRESS_FILE = HERE / 'ADDRESS'
 
 
 def version():
     """Единственное место, где живёт номер версии."""
     return VERSION_FILE.read_text(encoding='utf8').strip()
+
+
+def address():
+    """Адрес сервера по умолчанию: его игрок увидит в настройках при первом
+    запуске. Пусто или нет файла — localhost, то есть сборка «для себя»."""
+    if not ADDRESS_FILE.is_file():
+        return 'localhost'
+    return ADDRESS_FILE.read_text(encoding='utf8').strip() or 'localhost'
 
 
 def find_jdk(explicit):
@@ -87,6 +96,9 @@ def main():
     resource = classes / 'oldways' / 'launcher' / 'VERSION'
     resource.parent.mkdir(parents=True, exist_ok=True)
     resource.write_text(ver + '\n', encoding='utf8', newline='\n')
+    host = address()
+    (resource.parent / 'ADDRESS').write_text(
+        host + '\n', encoding='utf8', newline='\n')
     manifest = build / 'MANIFEST.MF'
     manifest.write_text(
         'Manifest-Version: 1.0\n'
@@ -97,7 +109,8 @@ def main():
     target = build / JAR_NAME
     subprocess.run([str(jar), 'cfm', str(target), str(manifest), '-C', str(classes), '.'],
                    check=True)
-    print(f'готово: {target} ({target.stat().st_size / 1024:.0f} КБ), версия {ver}')
+    print(f'готово: {target} ({target.stat().st_size / 1024:.0f} КБ), '
+          f'версия {ver}, адрес по умолчанию {host}')
 
     if args.run:
         rest = args.rest[1:] if args.rest[:1] == ['--'] else args.rest

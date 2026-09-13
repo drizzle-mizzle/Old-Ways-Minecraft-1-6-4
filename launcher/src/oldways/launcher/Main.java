@@ -53,7 +53,7 @@ public final class Main {
     private static int console(Config cfg, Map<String, String> options) {
         try {
             String raw = options.containsKey("address")
-                    ? options.get("address") : cfg.get("address", "localhost");
+                    ? options.get("address") : cfg.get("address", Defaults.ADDRESS);
             Address address = Address.parse(raw);
             String base = address.base();
             Log.info("адрес: %s (игра %s:%d)", base, address.host,
