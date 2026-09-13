@@ -22,10 +22,17 @@ public final class Main {
         Log.info("Old Ways лаунчер %s, каталог %s", Version.CURRENT, root);
         Log.info("система %s, java %s", Util.OS, System.getProperty("java.version"));
 
+        // Две копии на одну папку — это две докачки в одни и те же файлы.
+        // Уже занято — просим показать то окно и уходим.
+        if (!Single.claim(cfg)) {
+            Log.info("лаунчер уже запущен — передал ход первому окну");
+            return;
+        }
+
         if (options.containsKey("cli")) {
             System.exit(console(cfg, options));
         }
-        MainWindow.open(cfg);
+        MainWindow.open(cfg, options.get("exe"));
     }
 
     private static Map<String, String> parse(String[] args) {

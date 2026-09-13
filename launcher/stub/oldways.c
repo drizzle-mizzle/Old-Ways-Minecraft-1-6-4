@@ -587,8 +587,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
     join(home, MAX_PATH * 2, base, L"game");
 
     wchar_t line[MAX_PATH * 8];
-    _snwprintf(line, MAX_PATH * 8, L"\"%ls\" -jar \"%ls\" --home \"%ls\" %ls",
-               java, jar, home, own_arguments());
+    _snwprintf(line, MAX_PATH * 8, L"\"%ls\" -jar \"%ls\" --home \"%ls\" --exe \"%ls\" %ls",
+               java, jar, home, self, own_arguments());
     line[MAX_PATH * 8 - 1] = 0;
 
     STARTUPINFOW startup;

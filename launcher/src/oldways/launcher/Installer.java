@@ -122,7 +122,7 @@ final class Installer {
         StringBuilder stamp = new StringBuilder();
         for (String path : manifest.natives) stamp.append(path).append('\n');
         File marker = new File(dir, ".stamp");
-        if (marker.isFile() && stamp.toString().equals(readText(marker))) return;
+        if (marker.isFile() && stamp.toString().equals(Util.readText(marker))) return;
 
         watcher.stage("Распаковываю библиотеки системы…");
         int count = 0;
@@ -130,7 +130,7 @@ final class Installer {
             checkCancelled();
             count += JarTool.extractNatives(cfg.local(path), dir);
         }
-        writeText(marker, stamp.toString());
+        Util.writeText(marker, stamp.toString());
         Log.info("natives: распаковано %d файлов в %s", count, dir);
     }
 
@@ -149,7 +149,7 @@ final class Installer {
         File index = cfg.local("assets/indexes/" + manifest.assets + ".json");
         File root = new File(cfg.assets(), "virtual" + File.separator + manifest.assets);
         Map<String, Object> objects = Json.map(
-                Json.map(Json.parse(readText(index))).get("objects"));
+                Json.map(Json.parse(Util.readText(index))).get("objects"));
 
         int created = 0;
         boolean linked = true;
@@ -235,22 +235,4 @@ final class Installer {
         }
     }
 
-    private static String readText(File file) throws IOException {
-        InputStream in = new FileInputStream(file);
-        try {
-            return new String(Util.readAll(in), "UTF-8");
-        } finally {
-            in.close();
-        }
-    }
-
-    private static void writeText(File file, String text) throws IOException {
-        Util.mkdirs(file.getParentFile());
-        OutputStream out = new FileOutputStream(file);
-        try {
-            out.write(text.getBytes("UTF-8"));
-        } finally {
-            out.close();
-        }
-    }
 }

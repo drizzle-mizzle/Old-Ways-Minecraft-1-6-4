@@ -74,6 +74,7 @@ final class MainWindow {
     private final Fields.PasswordField passwordField;
     private final Buttons loginButton;
     private final Buttons playButton;
+    private final String exePath;
     private final Link accountLink;
     private final Link logoutLink;
     private final JLabel linkDivider;
@@ -125,8 +126,9 @@ final class MainWindow {
     /** Кто вошёл. null — окно показывает поля логина и пароля. */
     private volatile Auth.Session session;
 
-    private MainWindow(Config cfg) {
+    private MainWindow(Config cfg, String exe) {
         this.cfg = cfg;
+        this.exePath = exe;
         this.k = windowScale();
 
         root = new Background(Theme.isDay(cfg.get("theme", "night"))) {
@@ -208,10 +210,10 @@ final class MainWindow {
         build();
     }
 
-    static void open(final Config cfg) {
+    static void open(final Config cfg, final String exe) {
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
-                new MainWindow(cfg).frame.setVisible(true);
+                new MainWindow(cfg, exe).frame.setVisible(true);
             }
         });
     }
@@ -442,6 +444,17 @@ final class MainWindow {
         restoreSession();
         watchSession();
         checkUpdate();
+        Single.whenAsked(new Runnable() {
+            public void run() {
+                SwingUtilities.invokeLater(new Runnable() {
+                    public void run() {
+                        frame.setExtendedState(JFrame.NORMAL);
+                        frame.toFront();
+                        frame.requestFocus();
+                    }
+                });
+            }
+        });
         frame.setResizable(false);
         frame.pack();
         frame.setLocationRelativeTo(null);
@@ -841,15 +854,27 @@ final class MainWindow {
      * человеку играть, поэтому любая ошибка уходит в журнал.
      */
     private void checkUpdate() {
+        final File exe = exePath == null ? null : new File(exePath);
         Updater.forgetBackup();
+        Updater.forgetOldExe(exe);
         Thread thread = new Thread(new Runnable() {
             public void run() {
                 try {
                     String base = Address.parse(addressField.getText().trim()).base();
-                    final String version = Updater.prepare(base);
-                    if (version != null) {
+                    java.util.Map<String, Object> what = Updater.ask(base);
+                    String version = Updater.prepare(base, what);
+                    // Запускатель меняется редко — только вместе с Java внутри
+                    // него, — и меняется сразу: его файл сейчас никем не занят.
+                    String stub = Updater.prepareExe(base, what, exe);
+                    if (stub != null) {
+                        say("Запускатель обновлён до " + stub);
+                    } else if (version != null) {
                         say("Обновление " + version + " применится при следующем запуске");
                     }
+                } catch (Updater.NeedsHands hands) {
+                    // Этот случай игрок должен увидеть: сами мы его не решим.
+                    Log.info("обновление требует рук: %s", hands.getMessage());
+                    oops(hands.getMessage());
                 } catch (Exception error) {
                     Log.info("обновление не проверено: %s", error);
                 }
@@ -1011,6 +1036,14 @@ final class MainWindow {
         try {
             Address address = Address.parse(raw);
             String base = address.base();
+            // Занятые файлы и отказ в правах выглядят в середине докачки
+            // оборванной установкой. Сказать об этом до начала — честнее.
+            String blocker = Guard.blocker(cfg);
+            if (blocker != null) {
+                oops(blocker);
+                return;
+            }
+
             Manifest manifest = Manifest.fetch(base);
             File client = new Installer(cfg, manifest, base, watcher()).run();
 
@@ -1025,7 +1058,9 @@ final class MainWindow {
             System.exit(0);
         } catch (Exception e) {
             Log.error("запуск не удался", e);
-            oops(Log.describe(e));
+            // Windows на занятый файл отвечает «отказано в доступе»: сам по
+            // себе такой текст игроку ничего не объясняет.
+            oops(Guard.hint(cfg, Log.describe(e)));
         } finally {
             SwingUtilities.invokeLater(new Runnable() {
                 public void run() {

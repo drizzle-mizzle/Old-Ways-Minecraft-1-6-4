@@ -3,8 +3,10 @@ package oldways.launcher;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -63,6 +65,25 @@ final class Util {
             sb.append(Character.forDigit(b & 0xf, 16));
         }
         return sb.toString();
+    }
+
+    static String readText(File file) throws IOException {
+        InputStream in = new FileInputStream(file);
+        try {
+            return new String(readAll(in), "UTF-8");
+        } finally {
+            in.close();
+        }
+    }
+
+    static void writeText(File file, String text) throws IOException {
+        mkdirs(file.getParentFile());
+        OutputStream out = new FileOutputStream(file);
+        try {
+            out.write(text.getBytes("UTF-8"));
+        } finally {
+            out.close();
+        }
     }
 
     static byte[] readAll(InputStream in) throws IOException {
