@@ -284,6 +284,14 @@ def main():
         print('моды: ' + ', '.join(Path(path).name for path, _, _, _ in mod_files))
     print(f'classpath: windows {len(classpath["windows"])} библиотек, '
           f'natives {len(natives["windows"])}')
+
+    # Лаунчер сюда кладётся отдельно и с другой машины: exe собирается только
+    # под Windows. Без него раздача игры работает, а вот обновлять себя
+    # лаунчеру нечем — сказать об этом лучше сразу, чем оставить выяснять.
+    if not (out / 'launcher').is_dir():
+        print(f'\nв {out / "launcher"} пусто — самому лаунчеру обновляться не с чего.')
+        print('Собрать и положить его туда: tools/publish_exe.py на Windows, '
+              'потом scp каталога dist/launcher (шаг 9 в docs/deploy.md).')
     return 0
 
 
